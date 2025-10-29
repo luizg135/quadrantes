@@ -270,14 +270,11 @@
     </div>
 
     <script>
-        // --- CONFIGURAÇÕES GLOBAIS ---
-        // VALORES FIXOS PARA OS EIXOS E QUADRANTES
         const ABSOLUTE_X_MAX = 300;
         const X_THRESHOLD = 150;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
-        
-        const API_URL = 'https://drive.google.com/uc?export=download&id=17bkV1yObBg8yU096LVJiAg2gevrbYcAN';
+        const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
 
         let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
@@ -289,13 +286,7 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
-                
-                // Mapeia os dados, limitando a demanda a 300 para a visualização
-                allData = data.map(item => ({
-                    ...item,
-                    display_demanda: Math.min(item.demanda, ABSOLUTE_X_MAX)
-                }));
-                
+                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, ABSOLUTE_X_MAX) }));
                 setupSliders();
                 updateFilterOptions(); 
                 applyFilters(); 
@@ -465,12 +456,16 @@
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
             const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
-            data.forEach((item, index) => { const point = document.createElement('div'); point.className = 'data-point z-10'; point.dataset.itemId = index; 
-                // Usa o display_demanda para a posição no gráfico
-                const xPos = Math.min(item.demanda, ABSOLUTE_X_MAX);
+            data.forEach((item, index) => { 
+                const point = document.createElement('div');
+                point.className = 'data-point z-10';
+                point.dataset.itemId = index;
+                const xPos = item.display_demanda; // Usa o valor já limitado para a posição
                 point.style.left = `${xRange > 0 ? ((xPos - currentXMin) / xRange) * 100 : 50}%`; 
                 point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; 
-                point.style.backgroundColor = '#235937'; fragment.appendChild(point); });
+                point.style.backgroundColor = '#235937';
+                fragment.appendChild(point); 
+            });
             chartArea.appendChild(fragment);
         }
 
