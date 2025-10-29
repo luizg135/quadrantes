@@ -253,7 +253,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-1">Demanda (Últimos 5 Anos)</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de inscritos para este curso.</p>
+                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de eventos para este curso.</p>
                         <div class="relative h-64">
                             <canvas id="demand-chart"></canvas>
                         </div>
@@ -269,70 +269,73 @@
         </div>
     </div>
 
-    <script>
+<script>
         // --- CONFIGURAÇÕES GLOBAIS ---
-        const ABSOLUTE_X_MAX = 6000, ABSOLUTE_Y_MAX = 100;
-        const Y_THRESHOLD = 50, X_THRESHOLD = 3000;
+        // VALORES ANTIGOS FORAM TRANSFORMADOS EM VARIÁVEIS DINÂMICAS
+        let dynamicXMax = 6000; // Valor padrão, será sobrescrito
+        let dynamicXThreshold = 3000; // Valor padrão, será sobrescrito
+        const ABSOLUTE_Y_MAX = 100;
+        const Y_THRESHOLD = 50;
         
-        // --- URL DA SUA "API" DO GOOGLE DRIVE ---
         const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
 
         let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
         
-        // --- FUNÇÃO PARA CARREGAR DADOS EXTERNOS ---
+        // --- FUNÇÃO DE CARREGAMENTO DE DADOS (ATUALIZADA) ---
         async function loadDataFromAPI() {
             const chartArea = document.getElementById('chart-area');
             chartArea.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-500">Carregando dados...</div>';
             try {
                 const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error(`Erro na rede: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
                 allData = data;
+
+                // --- LÓGICA PARA O EIXO X DINÂMICO (NOVA) ---
+                if (allData.length > 0) {
+                    // 1. Encontra a maior demanda nos dados
+                    const maxDemand = Math.max(...allData.map(item => item.demanda));
+                    
+                    // 2. Calcula um novo teto, adicionando um "respiro" de 5% e arredondando para a centena mais próxima
+                    dynamicXMax = Math.ceil((maxDemand * 1.05) / 100) * 100;
+
+                    // 3. O limiar do quadrante agora é a metade do novo máximo
+                    dynamicXThreshold = dynamicXMax / 2;
+                }
+                // --- FIM DA NOVA LÓGICA ---
+
+                // Movemos a criação dos sliders para DEPOIS de calcular o novo máximo
+                setupSliders();
+
                 populateFilters();
                 applyFilters(); 
             } catch (error) {
                 console.error("Falha ao carregar os dados:", error);
-                chartArea.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-red-500 font-semibold">Falha ao carregar os dados. Verifique o link da API ou o console.</div>';
+                chartArea.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-red-500 font-semibold">Falha ao carregar os dados. Verifique o console.</div>';
             }
         }
         
-        // --- FUNÇÃO PARA POPULAR FILTROS DINAMICAMENTE ---
         function populateFilters() {
             const responsaveis = [...new Set(allData.map(item => item.responsavel).filter(Boolean))].sort();
             const cadeias = [...new Set(allData.map(item => item.cadeia).filter(Boolean))].sort();
-
             const responsavelSelect = document.getElementById('filter-responsavel');
-            responsaveis.forEach(r => {
-                const option = document.createElement('option');
-                option.value = r;
-                option.textContent = r;
-                responsavelSelect.appendChild(option);
-            });
-
+            responsaveis.forEach(r => { const option = document.createElement('option'); option.value = r; option.textContent = r; responsavelSelect.appendChild(option); });
             const cadeiaSelect = document.getElementById('filter-cadeia');
-            cadeias.forEach(c => {
-                const option = document.createElement('option');
-                option.value = c;
-                option.textContent = c;
-                cadeiaSelect.appendChild(option);
-            });
+            cadeias.forEach(c => { const option = document.createElement('option'); option.value = c; option.textContent = c; cadeiaSelect.appendChild(option); });
         }
 
-        // --- INICIALIZAÇÃO DO DASHBOARD ---
+        // --- INICIALIZAÇÃO DO DASHBOARD (ATUALIZADA) ---
         document.addEventListener('DOMContentLoaded', () => {
             setupPanelControls();
             setupModalControls();
-            setupSliders();
+            // A criação dos sliders foi movida para a função loadDataFromAPI
             setupFilterListeners();
             setupAutocomplete();
             setupQuadrantButtons();
             loadDataFromAPI();
         });
 
-        // --- FUNÇÕES DE SETUP DA INTERFACE ---
         function setupPanelControls() {
             const openFiltersBtn = document.getElementById('open-filters-btn'), closeFiltersBtn = document.getElementById('close-filters-btn'),
                   clearFiltersBtnHeader = document.getElementById('clear-filters-btn-header'), clearFiltersBtnPanel = document.getElementById('clear-filters-btn-panel'),
@@ -353,8 +356,10 @@
             modalBackdrop.addEventListener('click', closeCourseModal);
         }
 
+        // --- SETUP DOS SLIDERS (ATUALIZADO) ---
         function setupSliders() {
-            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': ABSOLUTE_X_MAX }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
+            // Agora usa a variável dinâmica para o range máximo
+            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dynamicXMax }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
         }
 
@@ -363,11 +368,13 @@
             document.getElementById('filter-responsavel').addEventListener('change', applyFilters);
         }
         
+        // --- FUNÇÃO RESET (ATUALIZADA) ---
         function resetFilters() {
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
             document.getElementById('filter-responsavel').value = 'todos';
-            demandSlider.noUiSlider.set([0, ABSOLUTE_X_MAX]);
+            // Reseta para o novo máximo dinâmico
+            demandSlider.noUiSlider.set([0, dynamicXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             document.getElementById('course-suggestions').classList.add('hidden');
             applyFilters();
@@ -396,14 +403,15 @@
             document.addEventListener('click', (e) => { if (!e.target.closest('.relative')) { suggestionsContainer.classList.add('hidden'); } });
         }
         
+        // --- BOTÕES DE QUADRANTE (ATUALIZADOS) ---
         function setupQuadrantButtons() {
-            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD));
-            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, 0, Y_THRESHOLD));
+            // Usam a variável dinâmica para definir os ranges
+            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(dynamicXThreshold, dynamicXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(dynamicXThreshold, dynamicXMax, 0, Y_THRESHOLD));
         }
 
-        // --- FUNÇÕES DE LÓGICA E RENDERIZAÇÃO ---
         function setQuadrantFilter(minX, maxX, minY, maxY) {
             demandSlider.noUiSlider.set([minX, maxX]);
             scoreSlider.noUiSlider.set([minY, maxY]);
@@ -442,7 +450,8 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= X_THRESHOLD, showRight = currentXMax >= X_THRESHOLD;
+            // Usa a variável dinâmica para o limiar X
+            const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= dynamicXThreshold, showRight = currentXMax >= dynamicXThreshold;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
             document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
@@ -450,11 +459,12 @@
         }
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
+            // Usa a variável dinâmica para o limiar X
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
             if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
-            lineY.style.display = (xRange > 0 && currentXMin <= X_THRESHOLD && currentXMax >= X_THRESHOLD) ? 'block' : 'none';
-            if (lineY.style.display === 'block') lineY.style.left = `${((X_THRESHOLD - currentXMin) / xRange) * 100}%`;
+            lineY.style.display = (xRange > 0 && currentXMin <= dynamicXThreshold && currentXMax >= dynamicXThreshold) ? 'block' : 'none';
+            if (lineY.style.display === 'block') lineY.style.left = `${((dynamicXThreshold - currentXMin) / xRange) * 100}%`;
         }
         
         function renderAxisTicks(currentXMin, currentXMax, currentYMin, currentYMax) {
@@ -496,7 +506,7 @@
         function renderDemandChart(history) {
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
-            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Inscritos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
+            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Eventos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
         }
 
         function renderSimilarCourses(courses) {
