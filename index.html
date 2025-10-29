@@ -270,8 +270,9 @@
     </div>
 
     <script>
-        const ABSOLUTE_X_MAX = 300;
-        const X_THRESHOLD = 150;
+        // --- CONFIGURAÇÕES GLOBAIS ---
+        const ABSOLUTE_X_MAX = 200;
+        const X_THRESHOLD = 100;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
@@ -428,7 +429,10 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= X_THRESHOLD, showRight = currentXMax >= X_THRESHOLD;
+            const showTop = currentYMax > Y_THRESHOLD;
+            const showBottom = currentYMin < Y_THRESHOLD;
+            const showLeft = currentXMin < X_THRESHOLD;
+            const showRight = currentXMax > X_THRESHOLD;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
             document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
@@ -460,7 +464,7 @@
                 const point = document.createElement('div');
                 point.className = 'data-point z-10';
                 point.dataset.itemId = index;
-                const xPos = item.display_demanda; // Usa o valor já limitado para a posição
+                const xPos = item.display_demanda;
                 point.style.left = `${xRange > 0 ? ((xPos - currentXMin) / xRange) * 100 : 50}%`; 
                 point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; 
                 point.style.backgroundColor = '#235937';
