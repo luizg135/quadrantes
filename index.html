@@ -253,7 +253,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-1">Demanda (Últimos 5 Anos)</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de eventos para este curso.</p>
+                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de inscritos para este curso.</p>
                         <div class="relative h-64">
                             <canvas id="demand-chart"></canvas>
                         </div>
@@ -271,12 +271,13 @@
 
     <script>
         // --- CONFIGURAÇÕES GLOBAIS ---
-        let dynamicXMax = 300; 
-        let dynamicXThreshold = 150;
+        // VALORES FIXOS PARA OS EIXOS E QUADRANTES
+        const ABSOLUTE_X_MAX = 300;
+        const X_THRESHOLD = 150;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         
-        const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
+        const API_URL = 'https://drive.google.com/uc?export=download&id=17bkV1yObBg8yU096LVJiAg2gevrbYcAN';
 
         let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
@@ -288,14 +289,13 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
-                allData = data;
-
-                if (allData.length > 0) {
-                    const maxDemand = Math.max(...allData.map(item => item.demanda));
-                    dynamicXMax = Math.ceil((maxDemand * 1.05) / 100) * 100;
-                    dynamicXThreshold = dynamicXMax / 2;
-                }
-
+                
+                // Mapeia os dados, limitando a demanda a 300 para a visualização
+                allData = data.map(item => ({
+                    ...item,
+                    display_demanda: Math.min(item.demanda, ABSOLUTE_X_MAX)
+                }));
+                
                 setupSliders();
                 updateFilterOptions(); 
                 applyFilters(); 
@@ -305,33 +305,18 @@
             }
         }
         
-        // --- FUNÇÃO DE FILTROS DEPENDENTES (ATUALIZADA) ---
         function updateFilterOptions() {
             const selectedCadeia = document.getElementById('filter-cadeia').value;
             const selectedResponsavel = document.getElementById('filter-responsavel').value;
-
-            // Lógica para obter as opções disponíveis
             let dataForCadeias = (selectedResponsavel !== 'todos') ? allData.filter(item => item.responsavel === selectedResponsavel) : allData;
             const cadeias = [...new Set(dataForCadeias.map(item => item.cadeia).filter(Boolean))].sort();
-            
             let dataForResponsaveis = (selectedCadeia !== 'todas') ? allData.filter(item => item.cadeia === selectedCadeia) : allData;
             const responsaveis = [...new Set(dataForResponsaveis.map(item => item.responsavel).filter(Boolean))].sort();
-
-            // Função auxiliar para repopular um select
             const repopulateSelect = (selectElement, options, currentValue) => {
-                while (selectElement.options.length > 1) {
-                    selectElement.remove(1);
-                }
-                options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt;
-                    option.textContent = opt;
-                    selectElement.appendChild(option);
-                });
+                while (selectElement.options.length > 1) { selectElement.remove(1); }
+                options.forEach(opt => { const option = document.createElement('option'); option.value = opt; option.textContent = opt; selectElement.appendChild(option); });
                 selectElement.value = currentValue;
             };
-
-            // Repopula os dois selects
             repopulateSelect(document.getElementById('filter-cadeia'), cadeias, selectedCadeia);
             repopulateSelect(document.getElementById('filter-responsavel'), responsaveis, selectedResponsavel);
         }
@@ -366,30 +351,24 @@
         }
 
         function setupSliders() {
-            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dynamicXMax }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
+            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': ABSOLUTE_X_MAX }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
         }
 
-        // --- LISTENERS DE FILTRO (ATUALIZADOS) ---
         function setupFilterListeners() {
-            const handleFilterChange = () => {
-                updateFilterOptions();
-                applyFilters();
-            };
+            const handleFilterChange = () => { updateFilterOptions(); applyFilters(); };
             document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
             document.getElementById('filter-responsavel').addEventListener('change', handleFilterChange);
         }
         
-        // --- FUNÇÃO RESET (ATUALIZADA) ---
         function resetFilters() {
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
             document.getElementById('filter-responsavel').value = 'todos';
-            demandSlider.noUiSlider.set([0, dynamicXMax]);
+            demandSlider.noUiSlider.set([0, ABSOLUTE_X_MAX]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             document.getElementById('course-suggestions').classList.add('hidden');
-            
-            updateFilterOptions(); // Repopula os filtros com todas as opções
+            updateFilterOptions();
             applyFilters();
         }
         
@@ -417,10 +396,10 @@
         }
         
         function setupQuadrantButtons() {
-            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(dynamicXThreshold, dynamicXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, 0, Y_THRESHOLD));
-            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(dynamicXThreshold, dynamicXMax, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, 0, Y_THRESHOLD));
         }
 
         function setQuadrantFilter(minX, maxX, minY, maxY) {
@@ -431,11 +410,9 @@
 
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
-
             const [minDemanda, maxDemanda] = demandSlider.noUiSlider.get().map(parseFloat);
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
-            
             filteredData = allData.filter(item => 
                 (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                 (cadeia === 'todas' || item.cadeia === cadeia) && 
@@ -443,7 +420,6 @@
                 (item.demanda >= minDemanda && item.demanda <= maxDemanda) && 
                 (item.pontuacao >= minScore && item.pontuacao <= maxScore)
             );
-
             renderAxisTicks(minDemanda, maxDemanda, minScore, maxScore);
             renderQuadrantLines(minDemanda, maxDemanda, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
@@ -461,7 +437,7 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= dynamicXThreshold, showRight = currentXMax >= dynamicXThreshold;
+            const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= X_THRESHOLD, showRight = currentXMax >= X_THRESHOLD;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
             document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
@@ -472,8 +448,8 @@
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
             if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
-            lineY.style.display = (xRange > 0 && currentXMin <= dynamicXThreshold && currentXMax >= dynamicXThreshold) ? 'block' : 'none';
-            if (lineY.style.display === 'block') lineY.style.left = `${((dynamicXThreshold - currentXMin) / xRange) * 100}%`;
+            lineY.style.display = (xRange > 0 && currentXMin <= X_THRESHOLD && currentXMax >= X_THRESHOLD) ? 'block' : 'none';
+            if (lineY.style.display === 'block') lineY.style.left = `${((X_THRESHOLD - currentXMin) / xRange) * 100}%`;
         }
         
         function renderAxisTicks(currentXMin, currentXMax, currentYMin, currentYMax) {
@@ -489,7 +465,12 @@
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
             const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
-            data.forEach((item, index) => { const point = document.createElement('div'); point.className = 'data-point z-10'; point.dataset.itemId = index; point.style.left = `${xRange > 0 ? ((item.demanda - currentXMin) / xRange) * 100 : 50}%`; point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; point.style.backgroundColor = '#235937'; fragment.appendChild(point); });
+            data.forEach((item, index) => { const point = document.createElement('div'); point.className = 'data-point z-10'; point.dataset.itemId = index; 
+                // Usa o display_demanda para a posição no gráfico
+                const xPos = Math.min(item.demanda, ABSOLUTE_X_MAX);
+                point.style.left = `${xRange > 0 ? ((xPos - currentXMin) / xRange) * 100 : 50}%`; 
+                point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; 
+                point.style.backgroundColor = '#235937'; fragment.appendChild(point); });
             chartArea.appendChild(fragment);
         }
 
@@ -514,7 +495,7 @@
         function renderDemandChart(history) {
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
-            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Eventos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
+            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Inscritos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
         }
 
         function renderSimilarCourses(courses) {
