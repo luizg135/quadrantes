@@ -269,11 +269,10 @@
         </div>
     </div>
 
-<script>
+    <script>
         // --- CONFIGURAÇÕES GLOBAIS ---
-        // VALORES ANTIGOS FORAM TRANSFORMADOS EM VARIÁVEIS DINÂMICAS
-        let dynamicXMax = 6000; // Valor padrão, será sobrescrito
-        let dynamicXThreshold = 3000; // Valor padrão, será sobrescrito
+        let dynamicXMax = 6000; 
+        let dynamicXThreshold = 3000;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         
@@ -282,7 +281,6 @@
         let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
         
-        // --- FUNÇÃO DE CARREGAMENTO DE DADOS (ATUALIZADA) ---
         async function loadDataFromAPI() {
             const chartArea = document.getElementById('chart-area');
             chartArea.innerHTML = '<div class="absolute inset-0 flex items-center justify-center text-gray-500">Carregando dados...</div>';
@@ -292,23 +290,14 @@
                 const data = await response.json();
                 allData = data;
 
-                // --- LÓGICA PARA O EIXO X DINÂMICO (NOVA) ---
                 if (allData.length > 0) {
-                    // 1. Encontra a maior demanda nos dados
                     const maxDemand = Math.max(...allData.map(item => item.demanda));
-                    
-                    // 2. Calcula um novo teto, adicionando um "respiro" de 5% e arredondando para a centena mais próxima
                     dynamicXMax = Math.ceil((maxDemand * 1.05) / 100) * 100;
-
-                    // 3. O limiar do quadrante agora é a metade do novo máximo
                     dynamicXThreshold = dynamicXMax / 2;
                 }
-                // --- FIM DA NOVA LÓGICA ---
 
-                // Movemos a criação dos sliders para DEPOIS de calcular o novo máximo
                 setupSliders();
-
-                populateFilters();
+                updateFilterOptions(); 
                 applyFilters(); 
             } catch (error) {
                 console.error("Falha ao carregar os dados:", error);
@@ -316,20 +305,40 @@
             }
         }
         
-        function populateFilters() {
-            const responsaveis = [...new Set(allData.map(item => item.responsavel).filter(Boolean))].sort();
-            const cadeias = [...new Set(allData.map(item => item.cadeia).filter(Boolean))].sort();
-            const responsavelSelect = document.getElementById('filter-responsavel');
-            responsaveis.forEach(r => { const option = document.createElement('option'); option.value = r; option.textContent = r; responsavelSelect.appendChild(option); });
-            const cadeiaSelect = document.getElementById('filter-cadeia');
-            cadeias.forEach(c => { const option = document.createElement('option'); option.value = c; option.textContent = c; cadeiaSelect.appendChild(option); });
+        // --- FUNÇÃO DE FILTROS DEPENDENTES (ATUALIZADA) ---
+        function updateFilterOptions() {
+            const selectedCadeia = document.getElementById('filter-cadeia').value;
+            const selectedResponsavel = document.getElementById('filter-responsavel').value;
+
+            // Lógica para obter as opções disponíveis
+            let dataForCadeias = (selectedResponsavel !== 'todos') ? allData.filter(item => item.responsavel === selectedResponsavel) : allData;
+            const cadeias = [...new Set(dataForCadeias.map(item => item.cadeia).filter(Boolean))].sort();
+            
+            let dataForResponsaveis = (selectedCadeia !== 'todas') ? allData.filter(item => item.cadeia === selectedCadeia) : allData;
+            const responsaveis = [...new Set(dataForResponsaveis.map(item => item.responsavel).filter(Boolean))].sort();
+
+            // Função auxiliar para repopular um select
+            const repopulateSelect = (selectElement, options, currentValue) => {
+                while (selectElement.options.length > 1) {
+                    selectElement.remove(1);
+                }
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt;
+                    option.textContent = opt;
+                    selectElement.appendChild(option);
+                });
+                selectElement.value = currentValue;
+            };
+
+            // Repopula os dois selects
+            repopulateSelect(document.getElementById('filter-cadeia'), cadeias, selectedCadeia);
+            repopulateSelect(document.getElementById('filter-responsavel'), responsaveis, selectedResponsavel);
         }
 
-        // --- INICIALIZAÇÃO DO DASHBOARD (ATUALIZADA) ---
         document.addEventListener('DOMContentLoaded', () => {
             setupPanelControls();
             setupModalControls();
-            // A criação dos sliders foi movida para a função loadDataFromAPI
             setupFilterListeners();
             setupAutocomplete();
             setupQuadrantButtons();
@@ -356,16 +365,19 @@
             modalBackdrop.addEventListener('click', closeCourseModal);
         }
 
-        // --- SETUP DOS SLIDERS (ATUALIZADO) ---
         function setupSliders() {
-            // Agora usa a variável dinâmica para o range máximo
             demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dynamicXMax }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
         }
 
+        // --- LISTENERS DE FILTRO (ATUALIZADOS) ---
         function setupFilterListeners() {
-            document.getElementById('filter-cadeia').addEventListener('change', applyFilters); 
-            document.getElementById('filter-responsavel').addEventListener('change', applyFilters);
+            const handleFilterChange = () => {
+                updateFilterOptions();
+                applyFilters();
+            };
+            document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
+            document.getElementById('filter-responsavel').addEventListener('change', handleFilterChange);
         }
         
         // --- FUNÇÃO RESET (ATUALIZADA) ---
@@ -373,10 +385,11 @@
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
             document.getElementById('filter-responsavel').value = 'todos';
-            // Reseta para o novo máximo dinâmico
             demandSlider.noUiSlider.set([0, dynamicXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             document.getElementById('course-suggestions').classList.add('hidden');
+            
+            updateFilterOptions(); // Repopula os filtros com todas as opções
             applyFilters();
         }
         
@@ -403,9 +416,7 @@
             document.addEventListener('click', (e) => { if (!e.target.closest('.relative')) { suggestionsContainer.classList.add('hidden'); } });
         }
         
-        // --- BOTÕES DE QUADRANTE (ATUALIZADOS) ---
         function setupQuadrantButtons() {
-            // Usam a variável dinâmica para definir os ranges
             document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, Y_THRESHOLD, ABSOLUTE_Y_MAX));
             document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(dynamicXThreshold, dynamicXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX));
             document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, dynamicXThreshold, 0, Y_THRESHOLD));
@@ -450,7 +461,6 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            // Usa a variável dinâmica para o limiar X
             const showTop = currentYMax >= Y_THRESHOLD, showBottom = currentYMin <= Y_THRESHOLD, showLeft = currentXMin <= dynamicXThreshold, showRight = currentXMax >= dynamicXThreshold;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
@@ -459,7 +469,6 @@
         }
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
-            // Usa a variável dinâmica para o limiar X
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
             if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
@@ -484,7 +493,6 @@
             chartArea.appendChild(fragment);
         }
 
-        // --- FUNÇÕES DE INTERAÇÃO DO GRÁFICO ---
         document.addEventListener('DOMContentLoaded', () => {
             const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
             chartArea.addEventListener('mouseover', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (!item) return; tooltip.style.display = 'block'; tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; } });
