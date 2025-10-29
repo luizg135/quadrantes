@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Quadrante</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': '#235937',
+                    },
+                    fontFamily: {
+                        'sans': ['Lexend', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            font-family: 'Lexend', sans-serif;
+            background-color: #f8fafc;
+            color: #334155;
+        }
+        .data-point {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            transform: translate(-50%, 50%);
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            border: 2px solid rgba(0, 0, 0, 0.3);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .data-point:hover {
+            transform: translate(-50%, 50%) scale(1.7);
+            z-index: 20;
+            border-color: #235937;
+        }
+        #tooltip {
+            position: absolute;
+            display: none;
+            background-color: #2d3748;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            z-index: 100;
+            pointer-events: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        input[type="text"]::-webkit-search-decoration,
+        input[type="text"]::-webkit-search-cancel-button,
+        input[type="text"]::-webkit-search-results-button,
+        input[type="text"]::-webkit-search-results-decoration {
+            -webkit-appearance:none;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #c7c7c7; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+        
+        .noUi-target {
+            background: #e2e8f0;
+            border-radius: 9999px;
+            border: 1px solid #cbd5e1;
+            box-shadow: none;
+        }
+        .noUi-connect { background: #235937; }
+        .noUi-handle {
+            border: 2px solid #235937;
+            border-radius: 50%;
+            background: #FFF;
+            box-shadow: none;
+            cursor: grab;
+        }
+        .noUi-handle:focus { outline: none; }
+        .noUi-handle::after, .noUi-handle::before { display: none; }
+        .noUi-horizontal .noUi-handle {
+            width: 20px;
+            height: 20px;
+            right: -10px;
+            top: -6px;
+        }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <div class="w-full h-full max-w-full flex flex-col">
+        
+        <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
+            <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
+                <img src="https://i.imgur.com/ruDtZT7.png" alt="Logo" class="h-full object-contain">
+            </div>
+
+            <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
+                Análise de Quadrantes (PEM 2026)
+            </h1>
+            <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <button id="clear-filters-btn-header" aria-label="Limpar filtros" class="bg-gray-200 text-gray-700 rounded-lg p-2 hover:bg-gray-300 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M21 21v-5h-5"/></svg>
+                </button>
+                <button id="open-filters-btn" aria-label="Abrir filtros" class="bg-brand text-white rounded-lg p-2 hover:bg-opacity-80 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+                </button>
+            </div>
+        </header>
+        
+        <div class="flex-1 relative w-full p-4 md:p-6" style="padding-left: 70px; padding-bottom: 50px;">
+            <span class="axis-label y-label absolute top-1/2 left-0 w-16 text-center -translate-y-1/2 -rotate-90 font-semibold text-gray-600">Pontuação</span>
+            <span class="axis-label x-label absolute bottom-0 left-1/2 -translate-x-1/2 pb-1 font-semibold text-gray-600">Demanda</span>
+
+            <div class="relative w-full h-full">
+                <div id="ticks-y-container" class="absolute top-0 bottom-0 -left-full w-full text-right pr-2"></div>
+                
+                <div id="chart-container" class="relative w-full h-full border-l-2 border-b-2 border-gray-400">
+                    <div id="quadrant-line-x" class="absolute left-0 right-0 h-0.5 bg-gray-300 border-b border-dashed border-gray-500 z-0"></div>
+                    <div id="quadrant-line-y" class="absolute top-0 bottom-0 w-0.5 bg-gray-300 border-r border-dashed border-gray-500 z-0"></div>
+                    
+                    <div id="q-top-left" class="absolute top-4 left-4 text-sm md:text-base text-gray-500 z-10">Alta Pontuação | Baixa Demanda</div>
+                    <div id="q-top-right" class="absolute top-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Alta Pontuação | Alta Demanda</div>
+                    <div id="q-bottom-left" class="absolute bottom-4 left-4 text-sm md:text-base text-gray-500 z-10">Baixa Pontuação | Baixa Demanda</div>
+                    <div id="q-bottom-right" class="absolute bottom-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Baixa Pontuação | Alta Demanda</div>
+                    
+                    <div id="ticks-x-container" class="absolute bottom-0 left-0 right-0 translate-y-full pt-1 text-center"></div>
+                    <div id="chart-area" class="absolute top-0 left-0 w-full h-full"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip"></div>
+    
+    <div id="filters-panel-container" class="fixed inset-0 z-40 pointer-events-none">
+        <div id="filters-backdrop" class="absolute inset-0 bg-black/30 opacity-0 transition-opacity duration-300"></div>
+
+        <div id="filters-panel" class="absolute top-0 right-0 h-full w-full max-w-sm bg-slate-50 shadow-2xl p-6 transform translate-x-full transition-transform duration-300 flex flex-col">
+            <div class="flex items-center justify-between mb-6 flex-shrink-0">
+                <h2 class="text-2xl font-bold text-brand">Filtros</h2>
+                <button id="close-filters-btn" aria-label="Fechar filtros" class="text-gray-400 hover:text-gray-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto space-y-6 custom-scrollbar pr-2">
+                <div class="relative">
+                    <label for="filter-nome" class="block text-sm font-medium text-gray-700 mb-1">Nome do Curso</label>
+                    <div class="relative">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        <input type="text" id="filter-nome" placeholder="Digite o nome..." autocomplete="off" class="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm pl-10">
+                    </div>
+                    <div id="course-suggestions" class="absolute z-10 w-full bg-white border border-gray-300 rounded-md mt-1 max-h-40 overflow-y-auto shadow-lg hidden"></div>
+                </div>
+
+                <div class="relative">
+                    <label for="filter-cadeia" class="block text-sm font-medium text-gray-700 mb-1">Cadeia Produtiva</label>
+                    <select id="filter-cadeia" class="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                        <option value="todas">Todas</option>
+                        <option value="Agro">Agro</option>
+                        <option value="Indústria">Indústria</option>
+                        <option value="Serviços">Serviços</option>
+                        <option value="Comércio">Comércio</option>
+                    </select>
+                </div>
+
+                <div class="relative">
+                    <label for="filter-responsavel" class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+                    <select id="filter-responsavel" class="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
+                        <option value="todos">Todos</option>
+                        <option value="Ana Silva">Ana Silva</option>
+                        <option value="Bruno Costa">Bruno Costa</option>
+                        <option value="Carla Dias">Carla Dias</option>
+                    </select>
+                </div>
+                
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Faixa de Demanda</label>
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                        <input type="number" id="demand-slider-min-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
+                        <input type="number" id="demand-slider-max-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
+                    </div>
+                    <div class="px-4">
+                        <div id="demand-slider" class="mt-3 h-1.5"></div>
+                    </div>
+                </div>
+
+                <div class="relative">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Faixa de Pontuação</label>
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                         <input type="number" id="score-slider-min-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
+                         <input type="number" id="score-slider-max-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
+                    </div>
+                    <div class="px-4">
+                        <div id="score-slider" class="mt-3 h-1.5"></div>
+                    </div>
+                </div>
+
+                <div class="relative pt-2">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Filtros Rápidos por Quadrante</label>
+                    <div class="grid grid-cols-2 gap-2 text-center text-xs font-medium">
+                        <button id="btn-q-top-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
+                        <button id="btn-q-top-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
+                        <button id="btn-q-bottom-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
+                        <button id="btn-q-bottom-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pt-4 mt-auto flex-shrink-0 border-t border-gray-200">
+                <button id="clear-filters-btn-panel" class="w-full py-2 px-4 bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors">
+                    Limpar Filtros
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
+        <div id="modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style="max-height: 90vh;">
+            <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+                <h2 id="modal-title" class="text-2xl font-bold text-brand">Nome do Curso</h2>
+                <button id="close-modal-btn" aria-label="Fechar detalhes do curso" class="text-gray-400 hover:text-gray-700 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="p-6 md:p-8 flex-1 overflow-y-auto custom-scrollbar">
+                <div class="space-y-8"> 
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Detalhes</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="bg-slate-50 p-4 rounded-lg text-center">
+                                <span class="text-sm font-medium text-gray-600">Pontuação</span>
+                                <span id="modal-score" class="block text-2xl font-bold text-brand mt-1"></span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg text-center">
+                                <span class="text-sm font-medium text-gray-600">Demanda PEM 2026</span>
+                                <span id="modal-pem" class="block text-2xl font-bold text-brand mt-1"></span>
+                            </div>
+                            <div class="bg-slate-50 p-4 rounded-lg text-center">
+                                <span class="text-sm font-medium text-gray-600">Técnico Responsável</span>
+                                <span id="modal-responsavel" class="block text-lg font-medium text-gray-800 mt-2"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-1">Demanda (Últimos 5 Anos)</h3>
+                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de inscritos para este curso.</p>
+                        <div class="relative h-64">
+                            <canvas id="demand-chart"></canvas>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Cursos Similares</h3>
+                        <div id="similar-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <p class="text-sm text-gray-500 text-center col-span-full">Nenhum curso similar encontrado.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ABSOLUTE_X_MAX = 6000, ABSOLUTE_Y_MAX = 100;
+        const Y_THRESHOLD = 50, X_THRESHOLD = 3000;
+        let currentXMin = 0, currentXMax = ABSOLUTE_X_MAX;
+        let currentYMin = 0, currentYMax = ABSOLUTE_Y_MAX;
+        let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
+        let demandSlider, scoreSlider;
+        
+        function getMockData() {
+            return [
+                { nome: 'Nome Comercial', pontuacao: 98, demanda: 150, cadeia: 'Comércio', responsavel: 'Ana Silva', demand_history: [50, 60, 70, 75, 80] },
+                { nome: 'Emissão de Documentos Fiscais', pontuacao: 88, demanda: 200, cadeia: 'Indústria', responsavel: 'Bruno Costa', demand_history: [100, 110, 130, 140, 150] },
+                { nome: 'Primeiros Socorros', pontuacao: 82, demanda: 750, cadeia: 'Serviços', responsavel: 'Carla Dias', demand_history: [300, 350, 400, 420, 450] },
+                { nome: 'Aplicação de Defensivos', pontuacao: 62, demanda: 1500, cadeia: 'Agro', responsavel: 'Ana Silva', demand_history: [500, 550, 600, 680, 700] },
+                { nome: 'Operação de Drones', pontuacao: 48, demanda: 1600, cadeia: 'Agro', responsavel: 'Bruno Costa', demand_history: [600, 700, 750, 780, 800] },
+                { nome: 'Comunicação Assertiva', pontuacao: 51, demanda: 2200, cadeia: 'Serviços', responsavel: 'Carla Dias', demand_history: [900, 1000, 1100, 1150, 1200] },
+                { nome: 'Agro digital', pontuacao: 72, demanda: 2400, cadeia: 'Agro', responsavel: 'Ana Silva', demand_history: [400, 450, 500, 550, 600] },
+                { nome: 'Tratores agrícolas', pontuacao: 80, demanda: 1100, cadeia: 'Agro', responsavel: 'Bruno Costa', demand_history: [200, 220, 250, 280, 300] },
+                { nome: 'Trabalho em Altura (NR 35)', pontuacao: 58, demanda: 3800, cadeia: 'Indústria', responsavel: 'Carla Dias', demand_history: [700, 800, 850, 900, 950] },
+                { nome: 'Alimentos seguros (APPCC)', pontuacao: 12, demanda: 400, cadeia: 'Indústria', responsavel: 'Ana Silva', demand_history: [10, 20, 30, 40, 50] },
+                { nome: 'Panificação Artesanal', pontuacao: 25, demanda: 1200, cadeia: 'Comércio', responsavel: 'Bruno Costa', demand_history: [150, 180, 200, 220, 250] },
+                { nome: 'Kaizen 5S', pontuacao: 48, demanda: 1700, cadeia: 'Indústria', responsavel: 'Carla Dias', demand_history: [800, 900, 950, 1000, 1100] },
+                { nome: 'Boas práticas de fabricação', pontuacao: 78, demanda: 400, cadeia: 'Serviços', responsavel: 'Ana Silva', demand_history: [400, 420, 450, 500, 550] },
+                { nome: 'Inspeção de Qualidade', pontuacao: 60, demanda: 5700, cadeia: 'Indústria', responsavel: 'Bruno Costa', demand_history: [1000, 1100, 1200, 1350, 1500] },
+                { nome: 'Marketing Digital', pontuacao: 90, demanda: 4500, cadeia: 'Serviços', responsavel: 'Carla Dias', demand_history: [1200, 1500, 1700, 1900, 2000] },
+                { nome: 'Gestão de Projetos', pontuacao: 85, demanda: 5100, cadeia: 'Serviços', responsavel: 'Ana Silva', demand_history: [1000, 1200, 1400, 1600, 1800] },
+                { nome: 'Finanças Pessoais', pontuacao: 40, demanda: 800, cadeia: 'Serviços', responsavel: 'Bruno Costa', demand_history: [600, 700, 750, 800, 900] },
+                { nome: 'Excel Avançado', pontuacao: 70, demanda: 3100, cadeia: 'Comércio', responsavel: 'Carla Dias', demand_history: [900, 1000, 1100, 1200, 1300] },
+                { nome: 'Logística 4.0', pontuacao: 65, demanda: 2800, cadeia: 'Indústria', responsavel: 'Ana Silva', demand_history: [500, 550, 600, 650, 750] },
+                { nome: 'IA para Negócios', pontuacao: 95, demanda: 3500, cadeia: 'Serviços', responsavel: 'Bruno Costa', demand_history: [1000, 1100, 1300, 1500, 1600] },
+            ];
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            allData = getMockData();
+            setupPanelControls();
+            setupModalControls();
+            setupSliders();
+            setupFilterListeners();
+            setupAutocomplete();
+            setupQuadrantButtons();
+            applyFilters();
+        });
+
+        function setupPanelControls() {
+            const openFiltersBtn = document.getElementById('open-filters-btn');
+            const closeFiltersBtn = document.getElementById('close-filters-btn');
+            const clearFiltersBtnHeader = document.getElementById('clear-filters-btn-header');
+            const clearFiltersBtnPanel = document.getElementById('clear-filters-btn-panel');
+            const filtersPanelContainer = document.getElementById('filters-panel-container'); 
+            const filtersBackdrop = document.getElementById('filters-backdrop');
+            const filtersPanel = document.getElementById('filters-panel');
+            const openPanel = () => { filtersPanelContainer.classList.remove('pointer-events-none'); filtersBackdrop.classList.remove('opacity-0'); filtersPanel.classList.remove('translate-x-full'); };
+            const closePanel = () => { filtersPanelContainer.classList.add('pointer-events-none'); filtersBackdrop.classList.add('opacity-0'); filtersPanel.classList.add('translate-x-full'); };
+            openFiltersBtn.addEventListener('click', openPanel);
+            closeFiltersBtn.addEventListener('click', closePanel);
+            filtersBackdrop.addEventListener('click', closePanel);
+            clearFiltersBtnHeader.addEventListener('click', resetFilters);
+            clearFiltersBtnPanel.addEventListener('click', resetFilters);
+        }
+
+        function setupModalControls() {
+            const modalBackdrop = document.getElementById('modal-backdrop');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+            closeModalBtn.addEventListener('click', closeCourseModal);
+            modalBackdrop.addEventListener('click', closeCourseModal);
+        }
+
+        function setupSliders() {
+            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': ABSOLUTE_X_MAX }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
+            scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
+        }
+
+        function setupFilterListeners() {
+            document.getElementById('filter-cadeia').addEventListener('change', applyFilters); 
+            document.getElementById('filter-responsavel').addEventListener('change', applyFilters);
+        }
+        
+        function resetFilters() {
+            document.getElementById('filter-nome').value = '';
+            document.getElementById('filter-cadeia').value = 'todas';
+            document.getElementById('filter-responsavel').value = 'todos';
+            demandSlider.noUiSlider.set([0, ABSOLUTE_X_MAX]);
+            scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
+            document.getElementById('course-suggestions').classList.add('hidden');
+            applyFilters();
+        }
+        
+        function setupAutocomplete() {
+            const input = document.getElementById('filter-nome');
+            const suggestionsContainer = document.getElementById('course-suggestions');
+            input.addEventListener('input', () => {
+                const query = input.value.toLowerCase();
+                suggestionsContainer.innerHTML = '';
+                if (query.length < 2) {
+                    suggestionsContainer.classList.add('hidden');
+                    applyFilters();
+                    return;
+                }
+                const matches = allData.filter(item => item.nome.toLowerCase().includes(query));
+                if (matches.length > 0) {
+                    matches.slice(0, 5).forEach(match => {
+                        const div = document.createElement('div');
+                        div.textContent = match.nome;
+                        div.className = 'p-2 cursor-pointer hover:bg-gray-100';
+                        div.addEventListener('click', () => { input.value = match.nome; suggestionsContainer.classList.add('hidden'); applyFilters(); });
+                        suggestionsContainer.appendChild(div);
+                    });
+                    suggestionsContainer.classList.remove('hidden');
+                } else {
+                    suggestionsContainer.classList.add('hidden');
+                }
+                applyFilters();
+            });
+            document.addEventListener('click', (e) => { if (!e.target.closest('.relative')) { suggestionsContainer.classList.add('hidden'); } });
+        }
+        
+        function setupQuadrantButtons() {
+            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, 0, Y_THRESHOLD));
+        }
+
+        function setQuadrantFilter(minX, maxX, minY, maxY) {
+            demandSlider.noUiSlider.set([minX, maxX]);
+            scoreSlider.noUiSlider.set([minY, maxY]);
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const [minDemanda, maxDemanda] = demandSlider.noUiSlider.get();
+            const [minScore, maxScore] = scoreSlider.noUiSlider.get();
+            currentXMin = parseFloat(minDemanda); currentXMax = parseFloat(maxDemanda);
+            currentYMin = parseFloat(minScore); currentYMax = parseFloat(maxScore);
+            renderAxisTicks();
+            renderQuadrantLines();
+            updateQuadrantLabelsVisibility();
+            const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
+            filteredData = allData.filter(item => (nome === '' || item.nome.toLowerCase().includes(nome)) && (cadeia === 'todas' || item.cadeia === cadeia) && (responsavel === 'todos' || item.responsavel === responsavel) && (item.demanda >= currentXMin && item.demanda <= currentXMax) && (item.pontuacao >= currentYMin && item.pontuacao <= currentYMax));
+            renderDataPoints(filteredData);
+        }
+
+        function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
+            const slider = document.getElementById(elementId), minInput = document.getElementById(minInputId), maxInput = document.getElementById(maxInputId);
+            noUiSlider.create(slider, { start: [range.min, range.max], connect: true, step: 1, range: range });
+            slider.noUiSlider.on('update', (values) => { minInput.value = Math.round(values[0]); maxInput.value = Math.round(values[1]); });
+            slider.noUiSlider.on('set', onSetCallback);
+            minInput.addEventListener('change', (e) => { slider.noUiSlider.set([e.target.value, null]); onSetCallback(); });
+            maxInput.addEventListener('change', (e) => { slider.noUiSlider.set([null, e.target.value]); onSetCallback(); });
+            return slider;
+        }
+
+        function updateQuadrantLabelsVisibility() {
+            const showTop = currentYMax > Y_THRESHOLD, showBottom = currentYMin < Y_THRESHOLD, showLeft = currentXMin < X_THRESHOLD, showRight = currentXMax > X_THRESHOLD;
+            document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
+            document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
+            document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
+            document.getElementById('q-bottom-right').classList.toggle('hidden', !(showBottom && showRight));
+        }
+
+        function renderQuadrantLines() {
+            const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
+            lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
+            if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
+            lineY.style.display = (xRange > 0 && currentXMin <= X_THRESHOLD && currentXMax >= X_THRESHOLD) ? 'block' : 'none';
+            if (lineY.style.display === 'block') lineY.style.left = `${((X_THRESHOLD - currentXMin) / xRange) * 100}%`;
+        }
+        
+        function renderAxisTicks() {
+            const ticksYContainer = document.getElementById('ticks-y-container'), ticksXContainer = document.getElementById('ticks-x-container');
+            ticksYContainer.innerHTML = ''; ticksXContainer.innerHTML = '';
+            const yRange = currentYMax - currentYMin;
+            let yTicks = yRange === 0 ? [currentYMin] : [currentYMin, currentYMin + yRange * 0.25, currentYMin + yRange * 0.5, currentYMin + yRange * 0.75, currentYMax];
+            yTicks.forEach(val => { const tick = document.createElement('div'); tick.className = 'absolute w-full text-xs text-gray-500'; tick.textContent = Math.round(val); tick.style.bottom = `${yRange > 0 ? ((val - currentYMin) / yRange) * 100 : 0}%`; tick.style.transform = 'translateY(50%)'; ticksYContainer.appendChild(tick); });
+            const xRange = currentXMax - currentXMin;
+            let xTicks = xRange === 0 ? [currentXMin] : [currentXMin, currentXMin + xRange / 2, currentXMax];
+            xTicks.forEach(val => { const tick = document.createElement('div'); tick.className = 'absolute top-0 text-xs text-gray-500'; tick.textContent = Math.round(val); const p = xRange > 0 ? ((val - currentXMin) / xRange) * 100 : 0; tick.style.left = `${p}%`; if (p === 100) tick.style.transform = 'translateX(-100%)'; else if (p > 0) tick.style.transform = 'translateX(-50%)'; ticksXContainer.appendChild(tick); });
+        }
+        
+        function renderDataPoints(data) {
+            const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
+            data.forEach((item, index) => { const point = document.createElement('div'); point.className = 'data-point z-10'; point.dataset.itemId = index; point.style.left = `${xRange > 0 ? ((item.demanda - currentXMin) / xRange) * 100 : 50}%`; point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; point.style.backgroundColor = '#235937'; fragment.appendChild(point); });
+            chartArea.appendChild(fragment);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
+            chartArea.addEventListener('mouseover', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (!item) return; tooltip.style.display = 'block'; tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; } });
+            chartArea.addEventListener('mousemove', e => { if (tooltip.style.display === 'block') { tooltip.style.left = `${e.pageX + 10}px`; tooltip.style.top = `${e.pageY + 10}px`; } });
+            chartArea.addEventListener('mouseout', e => { if (e.target.classList.contains('data-point')) { tooltip.style.display = 'none'; } });
+            chartArea.addEventListener('click', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (item) openCourseModal(item); } });
+        });
+        
+        function openCourseModal(item) {
+            const modal = document.getElementById('modal'); currentModalItem = item;
+            document.getElementById('modal-title').textContent = item.nome; document.getElementById('modal-score').textContent = item.pontuacao; document.getElementById('modal-pem').textContent = item.demanda; document.getElementById('modal-responsavel').textContent = item.responsavel;
+            renderDemandChart(item.demand_history);
+            renderSimilarCourses(allData.filter(c => c.cadeia === item.cadeia && c.nome !== item.nome).slice(0, 3));
+            modal.classList.remove('hidden');
+        }
+        
+        function closeCourseModal() { document.getElementById('modal').classList.add('hidden'); if (demandChartInstance) { demandChartInstance.destroy(); demandChartInstance = null; } currentModalItem = null; }
+
+        function renderDemandChart(history) {
+            if (demandChartInstance) { demandChartInstance.destroy(); }
+            const ctx = document.getElementById('demand-chart').getContext('2d');
+            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Inscritos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
+        }
+
+        function renderSimilarCourses(courses) {
+            const list = document.getElementById('similar-list'); list.innerHTML = '';
+            if (courses.length === 0) { list.innerHTML = '<p class="text-sm text-gray-500 text-center col-span-full">Nenhum curso similar encontrado.</p>'; return; }
+            courses.forEach(course => { const div = document.createElement('div'); div.className = 'p-3 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer'; div.innerHTML = `<div class="font-medium text-sm text-gray-800">${course.nome}</div><div class="flex justify-between text-xs text-gray-500 mt-1"><span>Pontuação: <strong class="text-brand">${course.pontuacao}</strong></span><span>Demanda: <strong class="text-brand">${course.demanda}</strong></span></div>`; div.addEventListener('click', () => { openCourseModal(course); }); list.appendChild(div); });
+        }
+    </script>
+</body>
+</html>
