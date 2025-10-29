@@ -269,7 +269,7 @@
         </div>
     </div>
 
-    <script>
+<script>
         // --- CONFIGURAÇÕES GLOBAIS ---
         const ABSOLUTE_X_MAX = 200;
         const X_THRESHOLD = 100;
@@ -400,18 +400,27 @@
             applyFilters();
         }
 
+        // --- FUNÇÃO DE FILTRAGEM (ATUALIZADA) ---
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
             const [minDemanda, maxDemanda] = demandSlider.noUiSlider.get().map(parseFloat);
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
-            filteredData = allData.filter(item => 
-                (nome === '' || item.nome.toLowerCase().includes(nome)) && 
-                (cadeia === 'todas' || item.cadeia === cadeia) && 
-                (responsavel === 'todos' || item.responsavel === responsavel) && 
-                (item.demanda >= minDemanda && item.demanda <= maxDemanda) && 
-                (item.pontuacao >= minScore && item.pontuacao <= maxScore)
-            );
+            
+            // AQUI ESTÁ A CORREÇÃO CRUCIAL:
+            const isMaxRange = (maxDemanda === ABSOLUTE_X_MAX);
+
+            filteredData = allData.filter(item => {
+                // A condição da demanda agora é mais inteligente
+                const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
+
+                return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
+                       (cadeia === 'todas' || item.cadeia === cadeia) && 
+                       (responsavel === 'todos' || item.responsavel === responsavel) && 
+                       demandCondition && // Usa a nova condição
+                       (item.pontuacao >= minScore && item.pontuacao <= maxScore);
+            });
+
             renderAxisTicks(minDemanda, maxDemanda, minScore, maxScore);
             renderQuadrantLines(minDemanda, maxDemanda, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
@@ -429,10 +438,10 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            const showTop = currentYMax > Y_THRESHOLD;
-            const showBottom = currentYMin < Y_THRESHOLD;
-            const showLeft = currentXMin < X_THRESHOLD;
-            const showRight = currentXMax > X_THRESHOLD;
+            const showTop = currentYMax >= Y_THRESHOLD;
+            const showBottom = currentYMin <= Y_THRESHOLD;
+            const showLeft = currentXMin <= X_THRESHOLD;
+            const showRight = currentXMax >= X_THRESHOLD;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
             document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
