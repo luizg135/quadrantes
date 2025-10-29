@@ -269,15 +269,15 @@
         </div>
     </div>
 
-<script>
-        // --- CONFIGURAÇÕES GLOBAIS ---
-        const ABSOLUTE_X_MAX = 200;
+    <script>
+        const CHART_X_MAX = 200;
         const X_THRESHOLD = 100;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
 
-        let allData = [], filteredData = [], demandChartInstance = null, currentModalItem = null;
+        let allData = [], filteredData = [], dataDrivenXMax = CHART_X_MAX;
+        let demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
         
         async function loadDataFromAPI() {
@@ -287,7 +287,13 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
-                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, ABSOLUTE_X_MAX) }));
+                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, CHART_X_MAX) }));
+
+                if (allData.length > 0) {
+                    const trueMaxDemand = Math.max(...allData.map(item => item.demanda));
+                    dataDrivenXMax = Math.ceil(trueMaxDemand / 100) * 100;
+                }
+
                 setupSliders();
                 updateFilterOptions(); 
                 applyFilters(); 
@@ -343,7 +349,7 @@
         }
 
         function setupSliders() {
-            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': ABSOLUTE_X_MAX }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
+            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
         }
 
@@ -357,7 +363,7 @@
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
             document.getElementById('filter-responsavel').value = 'todos';
-            demandSlider.noUiSlider.set([0, ABSOLUTE_X_MAX]);
+            demandSlider.noUiSlider.set([0, dataDrivenXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             document.getElementById('course-suggestions').classList.add('hidden');
             updateFilterOptions();
@@ -389,9 +395,9 @@
         
         function setupQuadrantButtons() {
             document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, Y_THRESHOLD, ABSOLUTE_Y_MAX));
+            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX));
             document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD));
-            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, ABSOLUTE_X_MAX, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, 0, Y_THRESHOLD));
         }
 
         function setQuadrantFilter(minX, maxX, minY, maxY) {
@@ -400,31 +406,28 @@
             applyFilters();
         }
 
-        // --- FUNÇÃO DE FILTRAGEM (ATUALIZADA) ---
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
             const [minDemanda, maxDemanda] = demandSlider.noUiSlider.get().map(parseFloat);
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
             
-            // AQUI ESTÁ A CORREÇÃO CRUCIAL:
-            const isMaxRange = (maxDemanda === ABSOLUTE_X_MAX);
+            const isMaxRange = (maxDemanda === dataDrivenXMax);
 
             filteredData = allData.filter(item => {
-                // A condição da demanda agora é mais inteligente
                 const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
 
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
                        (responsavel === 'todos' || item.responsavel === responsavel) && 
-                       demandCondition && // Usa a nova condição
+                       demandCondition && 
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
 
-            renderAxisTicks(minDemanda, maxDemanda, minScore, maxScore);
-            renderQuadrantLines(minDemanda, maxDemanda, minScore, maxScore);
+            renderAxisTicks(0, CHART_X_MAX, minScore, maxScore);
+            renderQuadrantLines(0, CHART_X_MAX, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
-            renderDataPoints(filteredData, minDemanda, maxDemanda, minScore, maxScore);
+            renderDataPoints(filteredData, 0, CHART_X_MAX, minScore, maxScore);
         }
 
         function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
@@ -439,9 +442,9 @@
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
             const showTop = currentYMax >= Y_THRESHOLD;
-            const showBottom = currentYMin <= Y_THRESHOLD;
-            const showLeft = currentXMin <= X_THRESHOLD;
-            const showRight = currentXMax >= X_THRESHOLD;
+            const showBottom = currentYMin < Y_THRESHOLD;
+            const showLeft = currentXMin < X_THRESHOLD;
+            const showRight = currentXMax > X_THRESHOLD;
             document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
             document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
             document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
@@ -484,8 +487,21 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
+            chartArea.addEventListener('mousemove', e => { 
+                if (e.target.classList.contains('data-point')) {
+                    const winWidth = window.innerWidth;
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    
+                    let left = e.pageX + 15;
+                    if (left + tooltipRect.width > winWidth) {
+                        left = e.pageX - tooltipRect.width - 15;
+                    }
+                    
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${e.pageY + 15}px`;
+                }
+            });
             chartArea.addEventListener('mouseover', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (!item) return; tooltip.style.display = 'block'; tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; } });
-            chartArea.addEventListener('mousemove', e => { if (tooltip.style.display === 'block') { tooltip.style.left = `${e.pageX + 10}px`; tooltip.style.top = `${e.pageY + 10}px`; } });
             chartArea.addEventListener('mouseout', e => { if (e.target.classList.contains('data-point')) { tooltip.style.display = 'none'; } });
             chartArea.addEventListener('click', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (item) openCourseModal(item); } });
         });
