@@ -10,6 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;700&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.7.1/nouislider.min.js"></script>
@@ -54,7 +55,7 @@
             border-color: #235937;
         }
         #tooltip {
-            position: absolute;
+            position: fixed; /* Mudar para fixed para evitar problemas de scroll */
             display: none;
             background-color: #2d3748;
             color: white;
@@ -64,6 +65,7 @@
             z-index: 100;
             pointer-events: none;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            white-space: nowrap;
         }
         input[type="text"]::-webkit-search-decoration,
         input[type="text"]::-webkit-search-cancel-button,
@@ -106,7 +108,7 @@
         
         <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
-                <img src="https://i.imgur.com/ruDtZT7.png" alt="Logo" class="h-full object-contain">
+                <img src="logo.png" alt="Logo" class="h-full object-contain">
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
@@ -122,7 +124,7 @@
             </div>
         </header>
         
-        <div class="flex-1 relative w-full p-4 md:p-6" style="padding-left: 70px; padding-bottom: 50px;">
+        <div class="flex-1 relative w-full p-4 md:p-6" style="padding-left: 70px; padding-right: 50px; padding-bottom: 50px;">
             <span class="axis-label y-label absolute top-1/2 left-0 w-16 text-center -translate-y-1/2 -rotate-90 font-semibold text-gray-600">Pontuação</span>
             <span class="axis-label x-label absolute bottom-0 left-1/2 -translate-x-1/2 pb-1 font-semibold text-gray-600">Demanda</span>
 
@@ -207,10 +209,10 @@
                 <div class="relative pt-2">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Filtros Rápidos por Quadrante</label>
                     <div class="grid grid-cols-2 gap-2 text-center text-xs font-medium">
-                        <button id="btn-q-top-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
-                        <button id="btn-q-top-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
-                        <button id="btn-q-bottom-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
-                        <button id="btn-q-bottom-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
+                        <button id="btn-q-top-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors" data-quadrant="q-top-left"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
+                        <button id="btn-q-top-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors" data-quadrant="q-top-right"><span class="block">Alta Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
+                        <button id="btn-q-bottom-left" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors" data-quadrant="q-bottom-left"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Baixa Demanda</span></button>
+                        <button id="btn-q-bottom-right" class="p-2 bg-white border rounded-md hover:bg-gray-100 transition-colors" data-quadrant="q-bottom-right"><span class="block">Baixa Pontuação</span><span class="block text-gray-500">Alta Demanda</span></button>
                     </div>
                 </div>
             </div>
@@ -279,6 +281,7 @@
         let allData = [], filteredData = [], dataDrivenXMax = CHART_X_MAX;
         let demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
+        let activeQuadrantFilter = null;
         
         async function loadDataFromAPI() {
             const chartArea = document.getElementById('chart-area');
@@ -349,14 +352,15 @@
         }
 
         function setupSliders() {
-            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', applyFilters);
-            scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', applyFilters);
+            demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
+            scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
         }
 
         function setupFilterListeners() {
-            const handleFilterChange = () => { updateFilterOptions(); applyFilters(); };
+            const handleFilterChange = () => { activeQuadrantFilter = null; updateFilterOptions(); applyFilters(); };
             document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
             document.getElementById('filter-responsavel').addEventListener('change', handleFilterChange);
+            document.getElementById('filter-nome').addEventListener('input', () => { activeQuadrantFilter = null; applyFilters(); });
         }
         
         function resetFilters() {
@@ -366,6 +370,7 @@
             demandSlider.noUiSlider.set([0, dataDrivenXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             document.getElementById('course-suggestions').classList.add('hidden');
+            activeQuadrantFilter = null;
             updateFilterOptions();
             applyFilters();
         }
@@ -394,15 +399,16 @@
         }
         
         function setupQuadrantButtons() {
-            document.getElementById('btn-q-top-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-top-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX));
-            document.getElementById('btn-q-bottom-left').addEventListener('click', () => setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD));
-            document.getElementById('btn-q-bottom-right').addEventListener('click', () => setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, 0, Y_THRESHOLD));
+            document.getElementById('btn-q-top-left').addEventListener('click', (e) => { setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-top-right').addEventListener('click', (e) => { setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-bottom-left').addEventListener('click', (e) => { setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-bottom-right').addEventListener('click', (e) => { setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
         }
 
-        function setQuadrantFilter(minX, maxX, minY, maxY) {
+        function setQuadrantFilter(minX, maxX, minY, maxY, quadrantId) {
             demandSlider.noUiSlider.set([minX, maxX]);
             scoreSlider.noUiSlider.set([minY, maxY]);
+            activeQuadrantFilter = quadrantId;
             applyFilters();
         }
 
@@ -412,22 +418,21 @@
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
             
-            const isMaxRange = (maxDemanda === dataDrivenXMax);
-
             filteredData = allData.filter(item => {
-                const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
-
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
                        (responsavel === 'todos' || item.responsavel === responsavel) && 
-                       demandCondition && 
+                       (item.demanda >= minDemanda && item.demanda <= maxDemanda) && 
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
+            
+            const visualXMin = Math.min(minDemanda, CHART_X_MAX);
+            const visualXMax = Math.min(maxDemanda, CHART_X_MAX);
 
-            renderAxisTicks(0, CHART_X_MAX, minScore, maxScore);
-            renderQuadrantLines(0, CHART_X_MAX, minScore, maxScore);
+            renderAxisTicks(visualXMin, visualXMax, minScore, maxScore);
+            renderQuadrantLines(visualXMin, visualXMax, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
-            renderDataPoints(filteredData, 0, CHART_X_MAX, minScore, maxScore);
+            renderDataPoints(filteredData, visualXMin, visualXMax, minScore, maxScore);
         }
 
         function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
@@ -441,14 +446,19 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            const showTop = currentYMax >= Y_THRESHOLD;
-            const showBottom = currentYMin < Y_THRESHOLD;
-            const showLeft = currentXMin < X_THRESHOLD;
-            const showRight = currentXMax > X_THRESHOLD;
-            document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
-            document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
-            document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
-            document.getElementById('q-bottom-right').classList.toggle('hidden', !(showBottom && showRight));
+            const allQuadrantLabels = ['q-top-left', 'q-top-right', 'q-bottom-left', 'q-bottom-right'];
+            if (activeQuadrantFilter) {
+                allQuadrantLabels.forEach(id => { document.getElementById(id).classList.toggle('hidden', id !== activeQuadrantFilter); });
+            } else {
+                const showTop = currentYMax >= Y_THRESHOLD;
+                const showBottom = currentYMin < Y_THRESHOLD;
+                const showLeft = currentXMin < X_THRESHOLD;
+                const showRight = currentXMax >= X_THRESHOLD;
+                document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
+                document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
+                document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
+                document.getElementById('q-bottom-right').classList.toggle('hidden', !(showBottom && showRight));
+            }
         }
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
@@ -463,11 +473,29 @@
             const ticksYContainer = document.getElementById('ticks-y-container'), ticksXContainer = document.getElementById('ticks-x-container');
             ticksYContainer.innerHTML = ''; ticksXContainer.innerHTML = '';
             const yRange = currentYMax - currentYMin;
-            let yTicks = yRange === 0 ? [currentYMin] : [currentYMin, currentYMin + yRange * 0.25, currentYMin + yRange * 0.5, currentYMin + yRange * 0.75, currentYMax];
-            yTicks.forEach(val => { const tick = document.createElement('div'); tick.className = 'absolute w-full text-xs text-gray-500'; tick.textContent = Math.round(val); tick.style.bottom = `${yRange > 0 ? ((val - currentYMin) / yRange) * 100 : 0}%`; tick.style.transform = 'translateY(50%)'; ticksYContainer.appendChild(tick); });
+            const ySteps = 4;
+            for (let i = 0; i <= ySteps; i++) {
+                const val = currentYMin + (yRange / ySteps) * i;
+                const tick = document.createElement('div');
+                tick.className = 'absolute w-full text-xs text-gray-500';
+                tick.textContent = Math.round(val);
+                tick.style.bottom = `${(i / ySteps) * 100}%`;
+                tick.style.transform = 'translateY(50%)';
+                ticksYContainer.appendChild(tick);
+            }
             const xRange = currentXMax - currentXMin;
-            let xTicks = xRange === 0 ? [currentXMin] : [currentXMin, currentXMin + xRange / 2, currentXMax];
-            xTicks.forEach(val => { const tick = document.createElement('div'); tick.className = 'absolute top-0 text-xs text-gray-500'; tick.textContent = Math.round(val); const p = xRange > 0 ? ((val - currentXMin) / xRange) * 100 : 0; tick.style.left = `${p}%`; if (p === 100) tick.style.transform = 'translateX(-100%)'; else if (p > 0) tick.style.transform = 'translateX(-50%)'; ticksXContainer.appendChild(tick); });
+            const xSteps = 2;
+            for (let i = 0; i <= xSteps; i++) {
+                const val = currentXMin + (xRange / xSteps) * i;
+                const tick = document.createElement('div');
+                tick.className = 'absolute top-0 text-xs text-gray-500';
+                tick.textContent = Math.round(val);
+                const p = (i / xSteps) * 100;
+                tick.style.left = `${p}%`;
+                if (p === 100) tick.style.transform = 'translateX(-100%)';
+                else if (p > 0) tick.style.transform = 'translateX(-50%)';
+                ticksXContainer.appendChild(tick);
+            }
         }
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
@@ -476,7 +504,7 @@
                 const point = document.createElement('div');
                 point.className = 'data-point z-10';
                 point.dataset.itemId = index;
-                const xPos = item.display_demanda;
+                const xPos = Math.min(item.demanda, CHART_X_MAX);
                 point.style.left = `${xRange > 0 ? ((xPos - currentXMin) / xRange) * 100 : 50}%`; 
                 point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; 
                 point.style.backgroundColor = '#235937';
@@ -489,16 +517,21 @@
             const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
             chartArea.addEventListener('mousemove', e => { 
                 if (e.target.classList.contains('data-point')) {
+                    const tooltipElement = document.getElementById('tooltip');
+                    const margin = 15;
+                    const tooltipWidth = tooltipElement.offsetWidth;
+                    const tooltipHeight = tooltipElement.offsetHeight;
                     const winWidth = window.innerWidth;
-                    const tooltipRect = tooltip.getBoundingClientRect();
-                    
-                    let left = e.pageX + 15;
-                    if (left + tooltipRect.width > winWidth) {
-                        left = e.pageX - tooltipRect.width - 15;
-                    }
-                    
-                    tooltip.style.left = `${left}px`;
-                    tooltip.style.top = `${e.pageY + 15}px`;
+
+                    let top = e.pageY - tooltipHeight - margin;
+                    if (top < 0) { top = e.pageY + margin; }
+
+                    let left = e.pageX - (tooltipWidth / 2);
+                    if (left < 0) { left = margin; }
+                    if (left + tooltipWidth > winWidth) { left = winWidth - tooltipWidth - margin; }
+
+                    tooltipElement.style.top = `${top}px`;
+                    tooltipElement.style.left = `${left}px`;
                 }
             });
             chartArea.addEventListener('mouseover', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (!item) return; tooltip.style.display = 'block'; tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; } });
@@ -519,7 +552,52 @@
         function renderDemandChart(history) {
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
-            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Eventos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
+            demandChartInstance = new Chart(ctx, { 
+                type: 'line', 
+                data: { 
+                    labels: ['2021', '2022', '2023', '2024', '2025'], 
+                    datasets: [{ 
+                        label: 'Eventos', 
+                        data: history, 
+                        borderColor: '#235937', 
+                        backgroundColor: 'rgba(35, 89, 55, 0.1)', 
+                        fill: true, 
+                        tension: 0.3, 
+                        borderWidth: 3, 
+                        pointBackgroundColor: '#235937', 
+                        pointRadius: 4, 
+                    }] 
+                }, 
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { backgroundColor: '#334155' },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            color: '#374151',
+                            font: {
+                                weight: 'bold'
+                            },
+                            formatter: (value) => value > 0 ? value : null // Só mostra o rótulo se o valor for maior que 0
+                        }
+                    } 
+                }, 
+                scales: { 
+                    y: { 
+                        beginAtZero: false, 
+                        grid: { color: '#e2e8f0' }, 
+                        ticks: { color: '#64748b' } 
+                    }, 
+                    x: { 
+                        grid: { display: false }, 
+                        ticks: { color: '#64748b' } 
+                    } 
+                },
+                plugins: [ChartDataLabels]
+            });
         }
 
         function renderSimilarCourses(courses) {
