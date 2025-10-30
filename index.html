@@ -429,7 +429,7 @@
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
             
-            const visualXMin = minDemanda > CHART_X_MAX ? CHART_X_MAX : minDemanda;
+            const visualXMin = Math.min(minDemanda, CHART_X_MAX);
             const visualXMax = Math.min(maxDemanda, CHART_X_MAX);
 
             renderAxisTicks(visualXMin, visualXMax, minScore, maxScore);
@@ -558,7 +558,8 @@
             Chart.register(ChartDataLabels);
 
             const maxValue = Math.max(...history);
-            const yAxisMax = maxValue + Math.max(Math.round(maxValue * 0.2), 5);
+            const newMax = maxValue + 10;
+            const yAxisMax = Math.ceil(newMax / 5) * 5; // Arredonda para o próximo múltiplo de 5
 
             demandChartInstance = new Chart(ctx, { 
                 type: 'line', 
@@ -577,7 +578,6 @@
                         datalabels: {
                             anchor: 'end',
                             align: 'top',
-                            clamp: true,
                             color: '#374151',
                             font: { weight: 'bold' },
                             formatter: (value) => value > 0 ? value : null
@@ -588,7 +588,7 @@
                             beginAtZero: false, 
                             grid: { color: '#e2e8f0' }, 
                             ticks: { color: '#64748b' },
-                            max: yAxisMax
+                            max: yAxisMax // Define o novo máximo calculado
                         }, 
                         x: { grid: { display: false }, ticks: { color: '#64748b' } } 
                     }
