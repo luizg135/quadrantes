@@ -253,7 +253,7 @@
                     </div>
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 mb-1">Demanda (Últimos 5 Anos)</h3>
-                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de inscritos para este curso.</p>
+                        <p class="text-sm text-gray-500 mb-4">Análise da tendência de eventos para este curso.</p>
                         <div class="relative h-64">
                             <canvas id="demand-chart"></canvas>
                         </div>
@@ -519,7 +519,7 @@
         function renderDemandChart(history) {
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
-            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Inscritos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
+            demandChartInstance = new Chart(ctx, { type: 'line', data: { labels: ['2021', '2022', '2023', '2024', '2025'], datasets: [{ label: 'Eventos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { backgroundColor: '#334155' } }, scales: { y: { beginAtZero: false, grid: { color: '#e2e8f0' }, ticks: { color: '#64748b' } }, x: { grid: { display: false }, ticks: { color: '#64748b' } } } } });
         }
 
         function renderSimilarCourses(courses) {
