@@ -418,15 +418,18 @@
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
             
+            const isMaxRange = (maxDemanda === dataDrivenXMax);
+
             filteredData = allData.filter(item => {
+                const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
                        (responsavel === 'todos' || item.responsavel === responsavel) && 
-                       (item.demanda >= minDemanda && item.demanda <= maxDemanda) && 
+                       demandCondition && 
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
             
-            const visualXMin = Math.min(minDemanda, CHART_X_MAX);
+            const visualXMin = minDemanda > CHART_X_MAX ? CHART_X_MAX : minDemanda;
             const visualXMax = Math.min(maxDemanda, CHART_X_MAX);
 
             renderAxisTicks(visualXMin, visualXMax, minScore, maxScore);
