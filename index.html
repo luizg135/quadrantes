@@ -55,7 +55,7 @@
             border-color: #235937;
         }
         #tooltip {
-            position: fixed; /* Mudar para fixed para evitar problemas de scroll */
+            position: fixed;
             display: none;
             background-color: #2d3748;
             color: white;
@@ -523,10 +523,10 @@
                     const tooltipHeight = tooltipElement.offsetHeight;
                     const winWidth = window.innerWidth;
 
-                    let top = e.pageY - tooltipHeight - margin;
-                    if (top < 0) { top = e.pageY + margin; }
+                    let top = e.clientY - tooltipHeight - margin;
+                    if (top < 0) { top = e.clientY + margin; }
 
-                    let left = e.pageX - (tooltipWidth / 2);
+                    let left = e.clientX - (tooltipWidth / 2);
                     if (left < 0) { left = margin; }
                     if (left + tooltipWidth > winWidth) { left = winWidth - tooltipWidth - margin; }
 
@@ -552,51 +552,44 @@
         function renderDemandChart(history) {
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
+            Chart.register(ChartDataLabels);
+
+            const maxValue = Math.max(...history);
+            const yAxisMax = maxValue + Math.max(Math.round(maxValue * 0.2), 5);
+
             demandChartInstance = new Chart(ctx, { 
                 type: 'line', 
                 data: { 
                     labels: ['2021', '2022', '2023', '2024', '2025'], 
                     datasets: [{ 
-                        label: 'Eventos', 
-                        data: history, 
-                        borderColor: '#235937', 
-                        backgroundColor: 'rgba(35, 89, 55, 0.1)', 
-                        fill: true, 
-                        tension: 0.3, 
-                        borderWidth: 3, 
-                        pointBackgroundColor: '#235937', 
-                        pointRadius: 4, 
+                        label: 'Eventos', data: history, borderColor: '#235937', backgroundColor: 'rgba(35, 89, 55, 0.1)', 
+                        fill: true, tension: 0.3, borderWidth: 3, pointBackgroundColor: '#235937', pointRadius: 4, 
                     }] 
                 }, 
                 options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
+                    responsive: true, maintainAspectRatio: false, 
                     plugins: { 
                         legend: { display: false }, 
                         tooltip: { backgroundColor: '#334155' },
                         datalabels: {
                             anchor: 'end',
                             align: 'top',
+                            clamp: true,
                             color: '#374151',
-                            font: {
-                                weight: 'bold'
-                            },
-                            formatter: (value) => value > 0 ? value : null // Só mostra o rótulo se o valor for maior que 0
+                            font: { weight: 'bold' },
+                            formatter: (value) => value > 0 ? value : null
                         }
-                    } 
-                }, 
-                scales: { 
-                    y: { 
-                        beginAtZero: false, 
-                        grid: { color: '#e2e8f0' }, 
-                        ticks: { color: '#64748b' } 
                     }, 
-                    x: { 
-                        grid: { display: false }, 
-                        ticks: { color: '#64748b' } 
-                    } 
-                },
-                plugins: [ChartDataLabels]
+                    scales: { 
+                        y: { 
+                            beginAtZero: false, 
+                            grid: { color: '#e2e8f0' }, 
+                            ticks: { color: '#64748b' },
+                            max: yAxisMax
+                        }, 
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } } 
+                    }
+                }
             });
         }
 
