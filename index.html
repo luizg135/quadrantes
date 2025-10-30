@@ -558,7 +558,7 @@
             Chart.register(ChartDataLabels);
 
             const maxValue = Math.max(...history);
-            const newMax = maxValue + 20;
+            const newMax = maxValue + 40;
             const yAxisMax = Math.ceil(newMax / 5) * 5; // Arredonda para o próximo múltiplo de 5
 
             demandChartInstance = new Chart(ctx, { 
