@@ -33,6 +33,7 @@
     </script>
 
     <style>
+        /* ... Estilos CSS idênticos aos anteriores ... */
         body {
             font-family: 'Lexend', sans-serif;
             background-color: #f8fafc;
@@ -139,7 +140,7 @@
         
         <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
-                <img src="logo.png" alt="Logo" class="h-full object-contain">
+                <span class="text-lg font-bold text-gray-500"></span>
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
@@ -208,14 +209,24 @@
                     </select>
                 </div>
 
+                <!-- MODIFICADO: Bloco do Responsável -->
                 <div class="relative">
-                    <label for="filter-responsavel" class="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
-                    <select id="filter-responsavel" class="w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand sm:text-sm">
-                        <option value="todos">Todos</option>
-                    </select>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
+                    
+                    <!-- Botões de Ação -->
+                    <div class="flex items-center gap-2 mb-2">
+                        <button id="responsavel-select-all" class="flex-1 text-xs py-1 px-2 bg-white border rounded-md hover:bg-gray-100 transition-colors">Selecionar Todos</button>
+                        <button id="responsavel-clear-all" class="flex-1 text-xs py-1 px-2 bg-white border rounded-md hover:bg-gray-100 transition-colors">Limpar Todos</button>
+                    </div>
+                    
+                    <!-- Lista de Checkbox -->
+                    <div id="filter-responsavel-list" class="max-h-40 overflow-y-auto space-y-2 rounded-md border border-gray-300 bg-white p-3 custom-scrollbar">
+                        <!-- Checkboxes serão populados pelo JS -->
+                        <p class="text-xs text-gray-500 text-center">Nenhum responsável disponível.</p>
+                    </div>
                 </div>
+                <!-- Fim do Bloco Modificado -->
                 
-                <!-- NOVO: Botão de Trava do Eixo -->
                 <div class="relative">
                     <div class="flex items-center justify-between">
                         <label class="block text-sm font-medium text-gray-700">Eixo de Demanda</label>
@@ -273,6 +284,7 @@
         </div>
     </div>
     
+    <!-- ... Modal (idêntico) ... -->
     <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
         <div id="modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style="max-height: 90vh;">
@@ -336,9 +348,10 @@
         
         // --- VARIÁVEIS GLOBAIS DE ESTADO ---
         let activeQuadrantFilter = null;
-        let isAxisLocked = true; // NOVO: Controla o estado da trava (default: travado)
-        let currentXThreshold = LOCKED_X_THRESHOLD; // NOVO: Centro do eixo X (dinâmico)
-        let currentVisualCap = LOCKED_X_MAX; // NOVO: Limite visual do eixo X (dinâmico)
+        let isAxisLocked = true;
+        let currentXThreshold = LOCKED_X_THRESHOLD;
+        let currentVisualCap = LOCKED_X_MAX;
+        let selectedResponsaveis = []; // NOVO: Para múltipla seleção
 
         
         async function loadDataFromAPI() {
@@ -351,7 +364,6 @@
                 allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, LOCKED_X_MAX) }));
 
                 if (allData.length > 0) {
-                    // Calcula o máximo real de todos os dados para o slider no modo travado
                     const trueMaxDemand = Math.max(...allData.map(item => item.demanda));
                     dataDrivenXMax = Math.ceil(trueMaxDemand / 100) * 100;
                 }
@@ -365,20 +377,72 @@
             }
         }
         
+        // MODIFICADO: Esta função agora também renderiza os checkboxes
         function updateFilterOptions() {
             const selectedCadeia = document.getElementById('filter-cadeia').value;
-            const selectedResponsavel = document.getElementById('filter-responsavel').value;
-            let dataForCadeias = (selectedResponsavel !== 'todos') ? allData.filter(item => item.responsavel === selectedResponsavel) : allData;
+            // selectedResponsaveis é global
+
+            // --- 1. Popular Cadeias (filtrado por responsáveis) ---
+            let dataForCadeias = (selectedResponsaveis.length > 0) 
+                ? allData.filter(item => selectedResponsaveis.includes(item.responsavel)) 
+                : allData;
             const cadeias = [...new Set(dataForCadeias.map(item => item.cadeia).filter(Boolean))].sort();
-            let dataForResponsaveis = (selectedCadeia !== 'todas') ? allData.filter(item => item.cadeia === selectedCadeia) : allData;
-            const responsaveis = [...new Set(dataForResponsaveis.map(item => item.responsavel).filter(Boolean))].sort();
+            
             const repopulateSelect = (selectElement, options, currentValue) => {
                 while (selectElement.options.length > 1) { selectElement.remove(1); }
                 options.forEach(opt => { const option = document.createElement('option'); option.value = opt; option.textContent = opt; selectElement.appendChild(option); });
                 selectElement.value = currentValue;
             };
             repopulateSelect(document.getElementById('filter-cadeia'), cadeias, selectedCadeia);
-            repopulateSelect(document.getElementById('filter-responsavel'), responsaveis, selectedResponsavel);
+
+            // --- 2. Popular Responsáveis (filtrado por cadeia) ---
+            let dataForResponsaveis = (selectedCadeia !== 'todas') 
+                ? allData.filter(item => item.cadeia === selectedCadeia) 
+                : allData;
+            const responsaveis = [...new Set(dataForResponsaveis.map(item => item.responsavel).filter(Boolean))].sort();
+
+            // --- 3. Renderizar Lista de Checkbox de Responsáveis ---
+            const container = document.getElementById('filter-responsavel-list');
+            container.innerHTML = ''; // Limpa a lista antiga
+            
+            if (responsaveis.length === 0) {
+                container.innerHTML = '<p class="text-xs text-gray-500 text-center">Nenhum responsável disponível.</p>';
+                return;
+            }
+
+            responsaveis.forEach(responsavel => {
+                const isChecked = selectedResponsaveis.includes(responsavel);
+                const wrapper = document.createElement('div');
+                wrapper.className = 'flex items-center';
+                
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.id = `resp-${responsavel.replace(/\s+/g, '-')}`; // ID único
+                input.value = responsavel;
+                input.checked = isChecked;
+                input.className = 'h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand';
+                
+                // Adiciona o evento de mudança
+                input.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        selectedResponsaveis.push(e.target.value);
+                    } else {
+                        selectedResponsaveis = selectedResponsaveis.filter(r => r !== e.target.value);
+                    }
+                    activeQuadrantFilter = null; 
+                    updateFilterOptions(); // Re-filtra a lista de Cadeias
+                    applyFilters(); // Aplica todos os filtros
+                });
+                
+                const label = document.createElement('label');
+                label.htmlFor = input.id;
+                label.textContent = responsavel;
+                label.className = 'ml-2 block text-sm text-gray-900 cursor-pointer';
+                
+                wrapper.appendChild(input);
+                wrapper.appendChild(label);
+                container.appendChild(wrapper);
+            });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -391,6 +455,7 @@
         });
 
         function setupPanelControls() {
+            // ... (idêntico) ...
             const openFiltersBtn = document.getElementById('open-filters-btn'), closeFiltersBtn = document.getElementById('close-filters-btn'),
                   clearFiltersBtnHeader = document.getElementById('clear-filters-btn-header'), clearFiltersBtnPanel = document.getElementById('clear-filters-btn-panel'),
                   filtersPanelContainer = document.getElementById('filters-panel-container'), filtersBackdrop = document.getElementById('filters-backdrop'),
@@ -405,44 +470,62 @@
         }
 
         function setupModalControls() {
+            // ... (idêntico) ...
             const modalBackdrop = document.getElementById('modal-backdrop'), closeModalBtn = document.getElementById('close-modal-btn');
             closeModalBtn.addEventListener('click', closeCourseModal);
             modalBackdrop.addEventListener('click', closeCourseModal);
         }
 
         function setupSliders() {
-            // O range do slider de demanda agora usa o máximo de *todos* os dados.
+            // ... (idêntico) ...
             demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
         }
 
+        // MODIFICADO: Remove listener antigo, adiciona novos
         function setupFilterListeners() {
             const handleFilterChange = () => { activeQuadrantFilter = null; updateFilterOptions(); applyFilters(); };
+            
             document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
-            document.getElementById('filter-responsavel').addEventListener('change', handleFilterChange);
+            // O listener de 'filter-responsavel' foi removido daqui e adicionado dinamicamente
+            
             document.getElementById('filter-nome').addEventListener('input', () => { activeQuadrantFilter = null; applyFilters(); });
             
-            // NOVO: Listener para o botão de trava
             document.getElementById('axis-lock-toggle').addEventListener('change', (e) => {
                 isAxisLocked = e.target.checked;
-                // Se travou, reseta o slider de demanda para o range total travado (0-200)
                 if (isAxisLocked) {
                     demandSlider.noUiSlider.set([0, LOCKED_X_MAX]);
                 }
                 applyFilters();
             });
+
+            // NOVO: Listeners para botões 'Todos' e 'Nenhum'
+            document.getElementById('responsavel-select-all').addEventListener('click', () => {
+                const allVisibleResponsaveis = Array.from(document.querySelectorAll('#filter-responsavel-list input[type="checkbox"]')).map(cb => cb.value);
+                // Adiciona todos os visíveis à seleção, sem duplicatas
+                selectedResponsaveis = [...new Set([...selectedResponsaveis, ...allVisibleResponsaveis])]; 
+                activeQuadrantFilter = null; 
+                updateFilterOptions(); // Atualiza a lista de cadeias e re-renderiza checkboxes
+                applyFilters();
+            });
+            
+            document.getElementById('responsavel-clear-all').addEventListener('click', () => {
+                selectedResponsaveis = []; // Limpa a seleção
+                activeQuadrantFilter = null; 
+                updateFilterOptions(); // Atualiza a lista de cadeias e re-renderiza checkboxes
+                applyFilters();
+            });
         }
         
+        // MODIFICADO: Reseta a lista de responsáveis
         function resetFilters() {
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
-            document.getElementById('filter-responsavel').value = 'todos';
+            selectedResponsaveis = []; // NOVO
             
-            // NOVO: Reseta o botão de trava
             document.getElementById('axis-lock-toggle').checked = true;
             isAxisLocked = true;
             
-            // Reseta sliders para os valores padrão do modo travado
             demandSlider.noUiSlider.set([0, dataDrivenXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
             
@@ -453,6 +536,7 @@
         }
         
         function setupAutocomplete() {
+            // ... (idêntico) ...
             const input = document.getElementById('filter-nome');
             const suggestionsContainer = document.getElementById('course-suggestions');
             input.addEventListener('input', () => {
@@ -476,7 +560,7 @@
         }
         
         function setupQuadrantButtons() {
-            // Modificado para usar as constantes do modo travado
+            // ... (idêntico) ...
             document.getElementById('btn-q-top-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
             document.getElementById('btn-q-top-right').addEventListener('click', (e) => { setQuadrantFilter(LOCKED_X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
             document.getElementById('btn-q-bottom-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
@@ -484,7 +568,7 @@
         }
 
         function setQuadrantFilter(minX, maxX, minY, maxY, quadrantId) {
-            // NOVO: Clicar em um quadrante força o modo travado
+            // ... (idêntico) ...
             document.getElementById('axis-lock-toggle').checked = true;
             isAxisLocked = true;
             document.getElementById('demand-slider').removeAttribute('disabled');
@@ -495,13 +579,13 @@
             applyFilters();
         }
 
-        // --- FUNÇÃO PRINCIPAL DE FILTRO (MODIFICADA) ---
+        // MODIFICADO: Atualiza a lógica de filtragem para 'responsavel'
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
 
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, 
-                  responsavel = document.getElementById('filter-responsavel').value, 
+                  // responsavel removido daqui
                   nome = document.getElementById('filter-nome').value.toLowerCase();
             const demandSliderEl = document.getElementById('demand-slider');
 
@@ -509,14 +593,10 @@
             let visualXMin, visualXMax;
 
             if (isAxisLocked) {
-                // MODO TRAVADO (ON)
+                // ... (lógica do eixo travado idêntica) ...
                 demandSliderEl.removeAttribute('disabled');
-                
-                // Usa os valores fixos
                 currentXThreshold = LOCKED_X_THRESHOLD;
-                currentVisualCap = LOCKED_X_MAX; // Cap visual em 200
-                
-                // O range visual é o que o slider definir
+                currentVisualCap = LOCKED_X_MAX; 
                 visualXMin = minDemanda;
                 visualXMax = maxDemanda;
 
@@ -528,23 +608,18 @@
                 const tempFiltered = allData.filter(item => 
                     (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                     (cadeia === 'todas' || item.cadeia === cadeia) && 
-                    (responsavel === 'todos' || item.responsavel === responsavel) && 
+                    // MODIFICADO: Usa a lista de responsáveis
+                    (selectedResponsaveis.length === 0 || selectedResponsaveis.includes(item.responsavel)) && 
                     (item.pontuacao >= minScore && item.pontuacao <= maxScore)
                 );
 
-                // 2. Calcula o novo máximo e centro dinâmico
+                // ... (lógica do eixo dinâmico idêntica) ...
                 const maxDemandaInFilter = tempFiltered.length > 0 ? Math.max(...tempFiltered.map(item => item.demanda)) : 10;
-                visualXMax = Math.max(10, Math.ceil(maxDemandaInFilter / 10) * 10); // Próximo múltiplo de 10
+                visualXMax = Math.max(10, Math.ceil(maxDemandaInFilter / 10) * 10);
                 visualXMin = 0;
-                
-                currentXThreshold = visualXMax / 2; // Centro é 50%
-                currentVisualCap = visualXMax; // Sem cap visual
-                
-                // 3. Atualiza os valores do slider (apenas visualmente, está desabilitado)
-                // CORREÇÃO: Adicionado 'false' para não disparar o evento 'set' e causar recursão
+                currentXThreshold = visualXMax / 2;
+                currentVisualCap = visualXMax;
                 demandSlider.noUiSlider.set([visualXMin, visualXMax], false);
-                
-                // 4. Define os valores de demanda para o filtro final
                 minDemanda = visualXMin;
                 maxDemanda = visualXMax;
             }
@@ -553,18 +628,17 @@
             const isMaxRange = isAxisLocked && (maxDemanda === dataDrivenXMax);
 
             filteredData = allData.filter(item => {
-                // A condição de demanda agora funciona para ambos os modos
                 const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
                 
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
-                       (responsavel === 'todos' || item.responsavel === responsavel) && 
+                       // MODIFICADO: Usa a lista de responsáveis
+                       (selectedResponsaveis.length === 0 || selectedResponsaveis.includes(item.responsavel)) && 
                        demandCondition && 
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
             
             // --- RENDERIZAÇÃO ---
-            // O range visual do eixo X é limitado pelo 'currentVisualCap' no modo travado
             const renderXMin = visualXMin;
             const renderXMax = isAxisLocked ? Math.min(visualXMax, currentVisualCap) : visualXMax;
 
@@ -575,11 +649,11 @@
         }
 
         function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
+            // ... (idêntico) ...
             const slider = document.getElementById(elementId), 
                   minInput = document.getElementById(minInputId), 
                   maxInput = document.getElementById(maxInputId);
             
-            // Ajusta os inputs para não serem editáveis se forem apenas para leitura
             if (minInput.readOnly || maxInput.readOnly) {
                 minInput.classList.add("bg-gray-100", "cursor-default");
                 maxInput.classList.add("bg-gray-100", "cursor-default");
@@ -589,7 +663,6 @@
             slider.noUiSlider.on('update', (values) => { minInput.value = Math.round(values[0]); maxInput.value = Math.round(values[1]); });
             slider.noUiSlider.on('set', onSetCallback);
             
-            // Permite edição dos sliders de pontuação
             if (!minInput.readOnly) {
                 minInput.addEventListener('change', (e) => { slider.noUiSlider.set([e.target.value, null]); onSetCallback(); });
                 maxInput.addEventListener('change', (e) => { slider.noUiSlider.set([null, e.target.value]); onSetCallback(); });
@@ -598,13 +671,13 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
+            // ... (idêntico) ...
             const allQuadrantLabels = ['q-top-left', 'q-top-right', 'q-bottom-left', 'q-bottom-right'];
             if (activeQuadrantFilter) {
                 allQuadrantLabels.forEach(id => { document.getElementById(id).classList.toggle('hidden', id !== activeQuadrantFilter); });
             } else {
                 const showTop = currentYMax >= Y_THRESHOLD;
                 const showBottom = currentYMin < Y_THRESHOLD;
-                // MODIFICADO: Usa o centro dinâmico
                 const showLeft = currentXMin < currentXThreshold;
                 const showRight = currentXMax >= currentXThreshold;
                 
@@ -616,17 +689,18 @@
         }
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
+            // ... (idêntico) ...
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
             if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
             
-            // MODIFICADO: Usa o centro dinâmico
             lineY.style.display = (xRange > 0 && currentXMin <= currentXThreshold && currentXMax >= currentXThreshold) ? 'block' : 'none';
             if (lineY.style.display === 'block') lineY.style.left = `${((currentXThreshold - currentXMin) / xRange) * 100}%`;
         }
         
         function renderAxisTicks(currentXMin, currentXMax, currentYMin, currentYMax) {
+            // ... (idêntico) ...
             const ticksYContainer = document.getElementById('ticks-y-container'), ticksXContainer = document.getElementById('ticks-x-container');
             ticksYContainer.innerHTML = ''; ticksXContainer.innerHTML = '';
             const yRange = currentYMax - currentYMin;
@@ -656,11 +730,10 @@
         }
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
+            // ... (idêntico) ...
             const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             
             data.forEach((item, index) => { 
-                // MODIFICADO: Usa o 'cap' visual dinâmico
-                // No modo travado, xPos será no máx. 200. No dinâmico, será o valor real.
                 const xPos = Math.min(item.demanda, currentVisualCap);
                 
                 const point = document.createElement('div');
@@ -676,6 +749,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // ... (idêntico) ...
             const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
             chartArea.addEventListener('mousemove', e => { 
                 if (e.target.classList.contains('data-point')) {
@@ -702,6 +776,7 @@
         });
         
         function openCourseModal(item) {
+            // ... (idêntico) ...
             const modal = document.getElementById('modal'); currentModalItem = item;
             document.getElementById('modal-title').textContent = item.nome; document.getElementById('modal-score').textContent = item.pontuacao; document.getElementById('modal-pem').textContent = item.demanda; document.getElementById('modal-responsavel').textContent = item.responsavel;
             renderDemandChart(item.demand_history);
@@ -709,9 +784,13 @@
             modal.classList.remove('hidden');
         }
         
-        function closeCourseModal() { document.getElementById('modal').classList.add('hidden'); if (demandChartInstance) { demandChartInstance.destroy(); demandChartInstance = null; } currentModalItem = null; }
+        function closeCourseModal() { 
+            // ... (idêntico) ...
+            document.getElementById('modal').classList.add('hidden'); if (demandChartInstance) { demandChartInstance.destroy(); demandChartInstance = null; } currentModalItem = null; 
+        }
 
         function renderDemandChart(history) {
+            // ... (idêntico) ...
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
             Chart.register(ChartDataLabels);
@@ -756,6 +835,7 @@
         }
 
         function renderSimilarCourses(courses) {
+            // ... (idêntico) ...
             const list = document.getElementById('similar-list'); list.innerHTML = '';
             if (courses.length === 0) { list.innerHTML = '<p class="text-sm text-gray-500 text-center col-span-full">Nenhum curso similar encontrado.</p>'; return; }
             courses.forEach(course => { const div = document.createElement('div'); div.className = 'p-3 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer'; div.innerHTML = `<div class="font-medium text-sm text-gray-800">${course.nome}</div><div class="flex justify-between text-xs text-gray-500 mt-1"><span>Pontuação: <strong class="text-brand">${course.pontuacao}</strong></span><span>Demanda: <strong class="text-brand">${course.demanda}</strong></span></div>`; div.addEventListener('click', () => { openCourseModal(course); }); list.appendChild(div); });
