@@ -140,8 +140,7 @@
         
         <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
-                <img src="logo.png" alt="Logo" class="h-full object-contain">
-                <span class="text-lg font-bold text-gray-500"></span>
+                <span class="text-lg font-bold text-gray-500">Logo</span>
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
@@ -290,7 +289,13 @@
         <div id="modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style="max-height: 90vh;">
             <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
-                <h2 id="modal-title" class="text-2xl font-bold text-brand">Nome do Curso</h2>
+                <div class="flex items-center gap-3">
+                    <h2 id="modal-title" class="text-2xl font-bold text-brand">Nome do Curso</h2>
+                    <div class="flex items-center gap-2 pt-1"> <!-- Wrapper para os badges -->
+                        <span id="modal-nivel" class="text-xs font-semibold px-2.5 py-1 rounded-full"></span>
+                        <span id="modal-ch" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800"></span>
+                    </div>
+                </div>
                 <button id="close-modal-btn" aria-label="Fechar detalhes do curso" class="text-gray-400 hover:text-gray-700 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
@@ -750,8 +755,8 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // ... (idêntico) ...
             const chartArea = document.getElementById('chart-area'), tooltip = document.getElementById('tooltip');
+            
             chartArea.addEventListener('mousemove', e => { 
                 if (e.target.classList.contains('data-point')) {
                     const tooltipElement = document.getElementById('tooltip');
@@ -771,15 +776,89 @@
                     tooltipElement.style.left = `${left}px`;
                 }
             });
-            chartArea.addEventListener('mouseover', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (!item) return; tooltip.style.display = 'block'; tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; } });
-            chartArea.addEventListener('mouseout', e => { if (e.target.classList.contains('data-point')) { tooltip.style.display = 'none'; } });
-            chartArea.addEventListener('click', e => { if (e.target.classList.contains('data-point')) { const item = filteredData[e.target.dataset.itemId]; if (item) openCourseModal(item); } });
+            
+            chartArea.addEventListener('mouseover', e => { 
+                if (e.target.classList.contains('data-point')) { 
+                    const item = filteredData[e.target.dataset.itemId]; 
+                    if (!item) return; 
+                    tooltip.style.display = 'block'; 
+                    tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; 
+                } 
+            });
+            
+            chartArea.addEventListener('mouseout', e => { 
+                if (e.target.classList.contains('data-point')) { 
+                    tooltip.style.display = 'none'; 
+                } 
+            });
+            
+            chartArea.addEventListener('click', e => { 
+                if (e.target.classList.contains('data-point')) { 
+                    const item = filteredData[e.target.dataset.itemId]; 
+                    if (item) openCourseModal(item); 
+                } 
+            });
         });
         
         function openCourseModal(item) {
-            // ... (idêntico) ...
-            const modal = document.getElementById('modal'); currentModalItem = item;
-            document.getElementById('modal-title').textContent = item.nome; document.getElementById('modal-score').textContent = item.pontuacao; document.getElementById('modal-pem').textContent = item.demanda; document.getElementById('modal-responsavel').textContent = item.responsavel;
+            const modal = document.getElementById('modal'); 
+            currentModalItem = item;
+            
+            const nivelBadge = document.getElementById('modal-nivel');
+            const chBadge = document.getElementById('modal-ch');
+            
+            document.getElementById('modal-title').textContent = item.nome; 
+            document.getElementById('modal-score').textContent = item.pontuacao; 
+            document.getElementById('modal-pem').textContent = item.demanda; 
+            document.getElementById('modal-responsavel').textContent = item.responsavel;
+
+            // --- NOVO: Lógica para Badges ---
+
+            // 1. Carga Horária (campo "carga horaria" com espaço)
+            if (item["carga horaria"]) {
+                chBadge.textContent = `${item["carga horaria"]}h`;
+                chBadge.style.display = 'inline-block';
+            } else {
+                chBadge.style.display = 'none';
+            }
+
+            // 2. Nível (com lógica de cores)
+            if (item.nivel) {
+                const nivel = item.nivel.toLowerCase();
+                let bgColor = 'bg-slate-200'; // Default
+                let textColor = 'text-slate-800';
+                
+                switch(nivel) {
+                    case 'básico':
+                        bgColor = 'bg-green-100';
+                        textColor = 'text-green-800';
+                        break;
+                    case 'intermediário':
+                        bgColor = 'bg-yellow-100';
+                        textColor = 'text-yellow-800';
+                        break;
+                    case 'avançado':
+                        bgColor = 'bg-orange-100';
+                        textColor = 'text-orange-800';
+                        break;
+                    case 'único':
+                        bgColor = 'bg-gray-200'; // Cor "cinza"
+                        textColor = 'text-gray-800';
+                        break;
+                }
+                
+                // Reseta classes e aplica as novas
+                nivelBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full'; 
+                nivelBadge.classList.add(bgColor, textColor);
+                nivelBadge.textContent = item.nivel; // Usa a capitalização original (ex: "Básico")
+                nivelBadge.style.display = 'inline-block';
+
+            } else {
+                nivelBadge.style.display = 'none';
+            }
+            
+            // --- Fim da Lógica para Badges ---
+
             renderDemandChart(item.demand_history);
             renderSimilarCourses(allData.filter(c => c.cadeia === item.cadeia && c.nome !== item.nome).slice(0, 3));
             modal.classList.remove('hidden');
