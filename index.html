@@ -140,8 +140,7 @@
         
         <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
-                <img src="logo.png" alt="Logo" class="h-full object-contain">
-                <span class="text-lg font-bold text-gray-500"></span>
+                <span class="text-lg font-bold text-gray-500">Logo</span>
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
@@ -782,8 +781,37 @@
                 if (e.target.classList.contains('data-point')) { 
                     const item = filteredData[e.target.dataset.itemId]; 
                     if (!item) return; 
+                    
+                    // --- NOVO: Lógica de Variação Percentual ---
+                    const demanda_2026 = item.demanda;
+                    const demanda_2025 = item.demand_history[4]; // 2025 é o 5º valor (índice 4)
+                    let percentIndicator = '';
+
+                    // Verifica se temos um valor válido para 2025
+                    if (demanda_2025 !== null && demanda_2025 !== undefined) {
+                        if (demanda_2025 > 0) {
+                            // Calcula a variação percentual
+                            const percentChange = ((demanda_2026 - demanda_2025) / demanda_2025) * 100;
+                            
+                            if (percentChange > 0.1) { // Limite para evitar "0%"
+                                percentIndicator = ` <span class="text-green-400 font-medium">&uarr; ${percentChange.toFixed(0)}%</span>`;
+                            } else if (percentChange < -0.1) {
+                                // Para o seu exemplo (100 -> 90), o resultado é -10%
+                                percentIndicator = ` <span class="text-red-400 font-medium">&darr; ${Math.abs(percentChange).toFixed(0)}%</span>`;
+                            } else {
+                                // Quase sem mudança
+                                percentIndicator = ` <span class="text-gray-400" title="Sem mudança vs 2025">&ndash;</span>`;
+                            }
+                        } else if (demanda_2025 === 0 && demanda_2026 > 0) {
+                            // Se era 0 e agora é > 0, é um grande aumento (ou curso novo)
+                            percentIndicator = ` <span class="text-green-400 font-medium" title="Novo vs 2025">&uarr;</span>`;
+                        }
+                    }
+                    // --- Fim da Lógica ---
+
                     tooltip.style.display = 'block'; 
-                    tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${item.demanda}</div>`; 
+                    // Atualiza o HTML do tooltip para incluir o indicador
+                    tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${demanda_2026}${percentIndicator}</div>`; 
                 } 
             });
             
