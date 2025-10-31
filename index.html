@@ -100,6 +100,38 @@
             right: -10px;
             top: -6px;
         }
+        /* Estilo para o slider desabilitado */
+        .noUi-target[disabled] {
+            background: #f1f5f9;
+            border-color: #e2e8f0;
+            cursor: not-allowed;
+        }
+        .noUi-target[disabled] .noUi-connect { background: #94a3b8; }
+        .noUi-target[disabled] .noUi-handle {
+            border-color: #cbd5e1;
+            background: #f8fafc;
+            cursor: not-allowed;
+        }
+        
+        /* Estilos para o Toggle Switch */
+        .toggle-bg:after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            background-color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+        input:checked + .toggle-bg:after {
+            transform: translateX(100%);
+            left: calc(100% - 22px);
+        }
+        input:checked + .toggle-bg {
+            background-color: #235937;
+        }
     </style>
 </head>
 <body class="h-screen flex flex-col overflow-hidden">
@@ -108,7 +140,9 @@
         
         <header class="relative flex items-center justify-center p-4 bg-white border-b border-gray-200 flex-shrink-0">
             <div class="absolute left-4 top-1/2 -translate-y-1/2 h-10">
-                <img src="logo.png" alt="Logo" class="h-full object-contain">
+                <!-- Imagem de logo removida para funcionar sem arquivos locais -->
+                <!-- <img src="logo.png" alt="Logo" class="h-full object-contain"> -->
+                <span class="text-lg font-bold text-gray-500">Logo</span>
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
@@ -184,11 +218,28 @@
                     </select>
                 </div>
                 
+                <!-- NOVO: Botão de Trava do Eixo -->
+                <div class="relative">
+                    <div class="flex items-center justify-between">
+                        <label class="block text-sm font-medium text-gray-700">Eixo de Demanda</label>
+                        <div class="flex items-center space-x-2">
+                             <span class="text-sm text-gray-600">Dinâmico</span>
+                             <label for="axis-lock-toggle" class="flex items-center cursor-pointer">
+                                <div class="relative">
+                                    <input type="checkbox" id="axis-lock-toggle" class="sr-only" checked>
+                                    <div class="toggle-bg block bg-gray-300 w-12 h-6 rounded-full transition-colors"></div>
+                                </div>
+                            </label>
+                            <span class="text-sm font-medium text-brand">Travado</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-1">Faixa de Demanda</label>
                     <div class="flex items-center justify-between gap-2 mb-2">
-                        <input type="number" id="demand-slider-min-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
-                        <input type="number" id="demand-slider-max-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand">
+                        <input type="number" id="demand-slider-min-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand" readonly>
+                        <input type="number" id="demand-slider-max-input" class="w-full text-center border-gray-300 rounded-md shadow-sm sm:text-sm focus:border-brand focus:ring-brand" readonly>
                     </div>
                     <div class="px-4">
                         <div id="demand-slider" class="mt-3 h-1.5"></div>
@@ -272,16 +323,26 @@
     </div>
 
     <script>
-        const CHART_X_MAX = 200;
-        const X_THRESHOLD = 100;
+        // --- CONSTANTES DE ESTADO ---
+        const LOCKED_X_MAX = 200; // Valor fixo para o modo travado
+        const LOCKED_X_THRESHOLD = 100; // Centro fixo para o modo travado
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
 
-        let allData = [], filteredData = [], dataDrivenXMax = CHART_X_MAX;
+        // --- VARIÁVEIS GLOBAIS DE DADOS ---
+        let allData = [], filteredData = [], dataDrivenXMax = LOCKED_X_MAX;
+        
+        // --- INSTÂNCIAS DE GRÁFICO E SLIDER ---
         let demandChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
+        
+        // --- VARIÁVEIS GLOBAIS DE ESTADO ---
         let activeQuadrantFilter = null;
+        let isAxisLocked = true; // NOVO: Controla o estado da trava (default: travado)
+        let currentXThreshold = LOCKED_X_THRESHOLD; // NOVO: Centro do eixo X (dinâmico)
+        let currentVisualCap = LOCKED_X_MAX; // NOVO: Limite visual do eixo X (dinâmico)
+
         
         async function loadDataFromAPI() {
             const chartArea = document.getElementById('chart-area');
@@ -290,9 +351,10 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
-                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, CHART_X_MAX) }));
+                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, LOCKED_X_MAX) }));
 
                 if (allData.length > 0) {
+                    // Calcula o máximo real de todos os dados para o slider no modo travado
                     const trueMaxDemand = Math.max(...allData.map(item => item.demanda));
                     dataDrivenXMax = Math.ceil(trueMaxDemand / 100) * 100;
                 }
@@ -352,6 +414,7 @@
         }
 
         function setupSliders() {
+            // O range do slider de demanda agora usa o máximo de *todos* os dados.
             demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
         }
@@ -361,14 +424,31 @@
             document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
             document.getElementById('filter-responsavel').addEventListener('change', handleFilterChange);
             document.getElementById('filter-nome').addEventListener('input', () => { activeQuadrantFilter = null; applyFilters(); });
+            
+            // NOVO: Listener para o botão de trava
+            document.getElementById('axis-lock-toggle').addEventListener('change', (e) => {
+                isAxisLocked = e.target.checked;
+                // Se travou, reseta o slider de demanda para o range total travado (0-200)
+                if (isAxisLocked) {
+                    demandSlider.noUiSlider.set([0, LOCKED_X_MAX]);
+                }
+                applyFilters();
+            });
         }
         
         function resetFilters() {
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
             document.getElementById('filter-responsavel').value = 'todos';
+            
+            // NOVO: Reseta o botão de trava
+            document.getElementById('axis-lock-toggle').checked = true;
+            isAxisLocked = true;
+            
+            // Reseta sliders para os valores padrão do modo travado
             demandSlider.noUiSlider.set([0, dataDrivenXMax]);
             scoreSlider.noUiSlider.set([0, ABSOLUTE_Y_MAX]);
+            
             document.getElementById('course-suggestions').classList.add('hidden');
             activeQuadrantFilter = null;
             updateFilterOptions();
@@ -399,29 +479,86 @@
         }
         
         function setupQuadrantButtons() {
-            document.getElementById('btn-q-top-left').addEventListener('click', (e) => { setQuadrantFilter(0, X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
-            document.getElementById('btn-q-top-right').addEventListener('click', (e) => { setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
-            document.getElementById('btn-q-bottom-left').addEventListener('click', (e) => { setQuadrantFilter(0, X_THRESHOLD, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
-            document.getElementById('btn-q-bottom-right').addEventListener('click', (e) => { setQuadrantFilter(X_THRESHOLD, dataDrivenXMax, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
+            // Modificado para usar as constantes do modo travado
+            document.getElementById('btn-q-top-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-top-right').addEventListener('click', (e) => { setQuadrantFilter(LOCKED_X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-bottom-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
+            document.getElementById('btn-q-bottom-right').addEventListener('click', (e) => { setQuadrantFilter(LOCKED_X_THRESHOLD, dataDrivenXMax, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
         }
 
         function setQuadrantFilter(minX, maxX, minY, maxY, quadrantId) {
+            // NOVO: Clicar em um quadrante força o modo travado
+            document.getElementById('axis-lock-toggle').checked = true;
+            isAxisLocked = true;
+            document.getElementById('demand-slider').removeAttribute('disabled');
+
             demandSlider.noUiSlider.set([minX, maxX]);
             scoreSlider.noUiSlider.set([minY, maxY]);
             activeQuadrantFilter = quadrantId;
             applyFilters();
         }
 
+        // --- FUNÇÃO PRINCIPAL DE FILTRO (MODIFICADA) ---
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
-            const [minDemanda, maxDemanda] = demandSlider.noUiSlider.get().map(parseFloat);
+
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
-            const cadeia = document.getElementById('filter-cadeia').value, responsavel = document.getElementById('filter-responsavel').value, nome = document.getElementById('filter-nome').value.toLowerCase();
+            const cadeia = document.getElementById('filter-cadeia').value, 
+                  responsavel = document.getElementById('filter-responsavel').value, 
+                  nome = document.getElementById('filter-nome').value.toLowerCase();
+            const demandSliderEl = document.getElementById('demand-slider');
+
+            let [minDemanda, maxDemanda] = demandSlider.noUiSlider.get().map(parseFloat);
+            let visualXMin, visualXMax;
+
+            if (isAxisLocked) {
+                // MODO TRAVADO (ON)
+                demandSliderEl.removeAttribute('disabled');
+                
+                // Usa os valores fixos
+                currentXThreshold = LOCKED_X_THRESHOLD;
+                currentVisualCap = LOCKED_X_MAX; // Cap visual em 200
+                
+                // O range visual é o que o slider definir
+                visualXMin = minDemanda;
+                visualXMax = maxDemanda;
+
+            } else {
+                // MODO DINÂMICO (OFF)
+                demandSliderEl.setAttribute('disabled', 'true');
+
+                // 1. Filtra os dados pelos outros campos primeiro
+                const tempFiltered = allData.filter(item => 
+                    (nome === '' || item.nome.toLowerCase().includes(nome)) && 
+                    (cadeia === 'todas' || item.cadeia === cadeia) && 
+                    (responsavel === 'todos' || item.responsavel === responsavel) && 
+                    (item.pontuacao >= minScore && item.pontuacao <= maxScore)
+                );
+
+                // 2. Calcula o novo máximo e centro dinâmico
+                const maxDemandaInFilter = tempFiltered.length > 0 ? Math.max(...tempFiltered.map(item => item.demanda)) : 10;
+                visualXMax = Math.max(10, Math.ceil(maxDemandaInFilter / 10) * 10); // Próximo múltiplo de 10
+                visualXMin = 0;
+                
+                currentXThreshold = visualXMax / 2; // Centro é 50%
+                currentVisualCap = visualXMax; // Sem cap visual
+                
+                // 3. Atualiza os valores do slider (apenas visualmente, está desabilitado)
+                // CORREÇÃO: Adicionado 'false' para não disparar o evento 'set' e causar recursão
+                demandSlider.noUiSlider.set([visualXMin, visualXMax], false);
+                
+                // 4. Define os valores de demanda para o filtro final
+                minDemanda = visualXMin;
+                maxDemanda = visualXMax;
+            }
             
-            const isMaxRange = (maxDemanda === dataDrivenXMax);
+            // --- FILTRO FINAL ---
+            const isMaxRange = isAxisLocked && (maxDemanda === dataDrivenXMax);
 
             filteredData = allData.filter(item => {
+                // A condição de demanda agora funciona para ambos os modos
                 const demandCondition = item.demanda >= minDemanda && (isMaxRange ? true : item.demanda <= maxDemanda);
+                
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
                        (responsavel === 'todos' || item.responsavel === responsavel) && 
@@ -429,22 +566,37 @@
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
             
-            const visualXMin = Math.min(minDemanda, CHART_X_MAX);
-            const visualXMax = Math.min(maxDemanda, CHART_X_MAX);
+            // --- RENDERIZAÇÃO ---
+            // O range visual do eixo X é limitado pelo 'currentVisualCap' no modo travado
+            const renderXMin = visualXMin;
+            const renderXMax = isAxisLocked ? Math.min(visualXMax, currentVisualCap) : visualXMax;
 
-            renderAxisTicks(visualXMin, visualXMax, minScore, maxScore);
-            renderQuadrantLines(visualXMin, visualXMax, minScore, maxScore);
+            renderAxisTicks(renderXMin, renderXMax, minScore, maxScore);
+            renderQuadrantLines(renderXMin, renderXMax, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
-            renderDataPoints(filteredData, visualXMin, visualXMax, minScore, maxScore);
+            renderDataPoints(filteredData, renderXMin, renderXMax, minScore, maxScore);
         }
 
         function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
-            const slider = document.getElementById(elementId), minInput = document.getElementById(minInputId), maxInput = document.getElementById(maxInputId);
+            const slider = document.getElementById(elementId), 
+                  minInput = document.getElementById(minInputId), 
+                  maxInput = document.getElementById(maxInputId);
+            
+            // Ajusta os inputs para não serem editáveis se forem apenas para leitura
+            if (minInput.readOnly || maxInput.readOnly) {
+                minInput.classList.add("bg-gray-100", "cursor-default");
+                maxInput.classList.add("bg-gray-100", "cursor-default");
+            }
+
             noUiSlider.create(slider, { start: [range.min, range.max], connect: true, step: 1, range: range });
             slider.noUiSlider.on('update', (values) => { minInput.value = Math.round(values[0]); maxInput.value = Math.round(values[1]); });
             slider.noUiSlider.on('set', onSetCallback);
-            minInput.addEventListener('change', (e) => { slider.noUiSlider.set([e.target.value, null]); onSetCallback(); });
-            maxInput.addEventListener('change', (e) => { slider.noUiSlider.set([null, e.target.value]); onSetCallback(); });
+            
+            // Permite edição dos sliders de pontuação
+            if (!minInput.readOnly) {
+                minInput.addEventListener('change', (e) => { slider.noUiSlider.set([e.target.value, null]); onSetCallback(); });
+                maxInput.addEventListener('change', (e) => { slider.noUiSlider.set([null, e.target.value]); onSetCallback(); });
+            }
             return slider;
         }
 
@@ -455,8 +607,10 @@
             } else {
                 const showTop = currentYMax >= Y_THRESHOLD;
                 const showBottom = currentYMin < Y_THRESHOLD;
-                const showLeft = currentXMin < X_THRESHOLD;
-                const showRight = currentXMax >= X_THRESHOLD;
+                // MODIFICADO: Usa o centro dinâmico
+                const showLeft = currentXMin < currentXThreshold;
+                const showRight = currentXMax >= currentXThreshold;
+                
                 document.getElementById('q-top-left').classList.toggle('hidden', !(showTop && showLeft));
                 document.getElementById('q-top-right').classList.toggle('hidden', !(showTop && showRight));
                 document.getElementById('q-bottom-left').classList.toggle('hidden', !(showBottom && showLeft));
@@ -466,10 +620,13 @@
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
+            
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
             if (lineX.style.display === 'block') lineX.style.bottom = `${((Y_THRESHOLD - currentYMin) / yRange) * 100}%`;
-            lineY.style.display = (xRange > 0 && currentXMin <= X_THRESHOLD && currentXMax >= X_THRESHOLD) ? 'block' : 'none';
-            if (lineY.style.display === 'block') lineY.style.left = `${((X_THRESHOLD - currentXMin) / xRange) * 100}%`;
+            
+            // MODIFICADO: Usa o centro dinâmico
+            lineY.style.display = (xRange > 0 && currentXMin <= currentXThreshold && currentXMax >= currentXThreshold) ? 'block' : 'none';
+            if (lineY.style.display === 'block') lineY.style.left = `${((currentXThreshold - currentXMin) / xRange) * 100}%`;
         }
         
         function renderAxisTicks(currentXMin, currentXMax, currentYMin, currentYMax) {
@@ -503,11 +660,16 @@
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
             const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
+            
             data.forEach((item, index) => { 
+                // MODIFICADO: Usa o 'cap' visual dinâmico
+                // No modo travado, xPos será no máx. 200. No dinâmico, será o valor real.
+                const xPos = Math.min(item.demanda, currentVisualCap);
+                
                 const point = document.createElement('div');
                 point.className = 'data-point z-10';
                 point.dataset.itemId = index;
-                const xPos = Math.min(item.demanda, CHART_X_MAX);
+                
                 point.style.left = `${xRange > 0 ? ((xPos - currentXMin) / xRange) * 100 : 50}%`; 
                 point.style.bottom = `${yRange > 0 ? ((item.pontuacao - currentYMin) / yRange) * 100 : 50}%`; 
                 point.style.backgroundColor = '#235937';
@@ -559,7 +721,7 @@
 
             const maxValue = Math.max(...history);
             const newMax = maxValue + 40;
-            const yAxisMax = Math.ceil(newMax / 5) * 5; // Arredonda para o próximo múltiplo de 5
+            const yAxisMax = Math.ceil(newMax / 5) * 5; 
 
             demandChartInstance = new Chart(ctx, { 
                 type: 'line', 
@@ -588,7 +750,7 @@
                             beginAtZero: true, 
                             grid: { color: '#e2e8f0' }, 
                             ticks: { color: '#64748b' },
-                            max: yAxisMax // Define o novo máximo calculado
+                            max: yAxisMax
                         }, 
                         x: { grid: { display: false }, ticks: { color: '#64748b' } } 
                     }
