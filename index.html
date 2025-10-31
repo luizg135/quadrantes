@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Análise de Quadrantes</title>
+    <title>Análise de Quadrantes & Pareto</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -33,7 +33,6 @@
     </script>
 
     <style>
-        /* ... Estilos CSS idênticos aos anteriores ... */
         body {
             font-family: 'Lexend', sans-serif;
             background-color: #f8fafc;
@@ -101,7 +100,6 @@
             right: -10px;
             top: -6px;
         }
-        /* Estilo para o slider desabilitado */
         .noUi-target[disabled] {
             background: #f1f5f9;
             border-color: #e2e8f0;
@@ -114,7 +112,6 @@
             cursor: not-allowed;
         }
         
-        /* Estilos para o Toggle Switch */
         .toggle-bg:after {
             content: '';
             position: absolute;
@@ -145,7 +142,7 @@
             </div>
 
             <h1 class="text-xl md:text-2xl font-bold text-brand text-center">
-                Análise de Quadrantes (PEM 2026)
+                Análise de Portfólio (PEM 2026)
             </h1>
             <div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
                 <button id="clear-filters-btn-header" aria-label="Limpar filtros" class="bg-gray-200 text-gray-700 rounded-lg p-2 hover:bg-gray-300 transition-colors">
@@ -157,25 +154,45 @@
             </div>
         </header>
         
-        <div class="flex-1 relative w-full p-4 md:p-6" style="padding-left: 70px; padding-right: 50px; padding-bottom: 50px;">
-            <span class="axis-label y-label absolute top-1/2 left-0 w-16 text-center -translate-y-1/2 -rotate-90 font-semibold text-gray-600">Pontuação</span>
-            <span class="axis-label x-label absolute bottom-0 left-1/2 -translate-x-1/2 pb-1 font-semibold text-gray-600">Demanda</span>
+        <div class="bg-white border-b border-gray-200 flex-shrink-0 flex justify-between items-center pr-6">
+            <nav id="tabs" class="-mb-px flex space-x-8 px-6 md:px-8" aria-label="Tabs">
+                <button id="tab-quadrant" type="button" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-brand border-brand" aria-current="page">
+                    Análise de Quadrantes
+                </button>
+                <button id="tab-pareto" type="button" class="whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">
+                    Análise de Pareto
+                </button>
+            </nav>
+            <button id="export-pareto-btn" class="hidden flex items-center gap-2 text-sm bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors py-1.5 px-3">
+                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+                Exportar
+            </button>
+        </div>
+        
+        <div class="flex-1 relative w-full overflow-y-auto">
+            <div id="quadrant-view" class="w-full h-full p-4 md:p-6" style="padding-left: 70px; padding-right: 50px; padding-bottom: 50px;">
+                <span class="axis-label y-label absolute top-1/2 left-0 w-16 text-center -translate-y-1/2 -rotate-90 font-semibold text-gray-600">Pontuação</span>
+                <span class="axis-label x-label absolute bottom-0 left-1/2 -translate-x-1/2 pb-1 font-semibold text-gray-600">Demanda</span>
 
-            <div class="relative w-full h-full">
-                <div id="ticks-y-container" class="absolute top-0 bottom-0 -left-full w-full text-right pr-2"></div>
-                
-                <div id="chart-container" class="relative w-full h-full border-l-2 border-b-2 border-gray-400">
-                    <div id="quadrant-line-x" class="absolute left-0 right-0 h-0.5 bg-gray-300 border-b border-dashed border-gray-500 z-0"></div>
-                    <div id="quadrant-line-y" class="absolute top-0 bottom-0 w-0.5 bg-gray-300 border-r border-dashed border-gray-500 z-0"></div>
+                <div class="relative w-full h-full">
+                    <div id="ticks-y-container" class="absolute top-0 bottom-0 -left-full w-full text-right pr-2"></div>
                     
-                    <div id="q-top-left" class="absolute top-4 left-4 text-sm md:text-base text-gray-500 z-10">Alta Pontuação | Baixa Demanda</div>
-                    <div id="q-top-right" class="absolute top-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Alta Pontuação | Alta Demanda</div>
-                    <div id="q-bottom-left" class="absolute bottom-4 left-4 text-sm md:text-base text-gray-500 z-10">Baixa Pontuação | Baixa Demanda</div>
-                    <div id="q-bottom-right" class="absolute bottom-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Baixa Pontuação | Alta Demanda</div>
-                    
-                    <div id="ticks-x-container" class="absolute bottom-0 left-0 right-0 translate-y-full pt-1 text-center"></div>
-                    <div id="chart-area" class="absolute top-0 left-0 w-full h-full"></div>
+                    <div id="chart-container" class="relative w-full h-full border-l-2 border-b-2 border-gray-400">
+                        <div id="quadrant-line-x" class="absolute left-0 right-0 h-0.5 bg-gray-300 border-b border-dashed border-gray-500 z-0"></div>
+                        <div id="quadrant-line-y" class="absolute top-0 bottom-0 w-0.5 bg-gray-300 border-r border-dashed border-gray-500 z-0"></div>
+                        
+                        <div id="q-top-left" class="absolute top-4 left-4 text-sm md:text-base text-gray-500 z-10">Alta Pontuação | Baixa Demanda</div>
+                        <div id="q-top-right" class="absolute top-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Alta Pontuação | Alta Demanda</div>
+                        <div id="q-bottom-left" class="absolute bottom-4 left-4 text-sm md:text-base text-gray-500 z-10">Baixa Pontuação | Baixa Demanda</div>
+                        <div id="q-bottom-right" class="absolute bottom-4 right-4 text-sm md:text-base text-gray-500 z-10 text-right">Baixa Pontuação | Alta Demanda</div>
+                        
+                        <div id="ticks-x-container" class="absolute bottom-0 left-0 right-0 translate-y-full pt-1 text-center"></div>
+                        <div id="chart-area" class="absolute top-0 left-0 w-full h-full"></div>
+                    </div>
                 </div>
+            </div>
+            <div id="pareto-view" class="w-full h-full p-4 md:p-6 hidden">
+                <canvas id="pareto-chart"></canvas>
             </div>
         </div>
     </div>
@@ -210,23 +227,18 @@
                     </select>
                 </div>
 
-                <!-- MODIFICADO: Bloco do Responsável -->
                 <div class="relative">
                     <label class="block text-sm font-medium text-gray-700 mb-2">Responsável</label>
                     
-                    <!-- Botões de Ação -->
                     <div class="flex items-center gap-2 mb-2">
                         <button id="responsavel-select-all" class="flex-1 text-xs py-1 px-2 bg-white border rounded-md hover:bg-gray-100 transition-colors">Selecionar Todos</button>
                         <button id="responsavel-clear-all" class="flex-1 text-xs py-1 px-2 bg-white border rounded-md hover:bg-gray-100 transition-colors">Limpar Todos</button>
                     </div>
                     
-                    <!-- Lista de Checkbox -->
                     <div id="filter-responsavel-list" class="max-h-40 overflow-y-auto space-y-2 rounded-md border border-gray-300 bg-white p-3 custom-scrollbar">
-                        <!-- Checkboxes serão populados pelo JS -->
                         <p class="text-xs text-gray-500 text-center">Nenhum responsável disponível.</p>
                     </div>
                 </div>
-                <!-- Fim do Bloco Modificado -->
                 
                 <div class="relative">
                     <div class="flex items-center justify-between">
@@ -234,10 +246,10 @@
                         <div class="flex items-center space-x-2">
                              <span class="text-sm text-gray-600">Dinâmico</span>
                              <label for="axis-lock-toggle" class="flex items-center cursor-pointer">
-                                <div class="relative">
-                                    <input type="checkbox" id="axis-lock-toggle" class="sr-only" checked>
-                                    <div class="toggle-bg block bg-gray-300 w-12 h-6 rounded-full transition-colors"></div>
-                                </div>
+                                 <div class="relative">
+                                     <input type="checkbox" id="axis-lock-toggle" class="sr-only" checked>
+                                     <div class="toggle-bg block bg-gray-300 w-12 h-6 rounded-full transition-colors"></div>
+                                 </div>
                             </label>
                             <span class="text-sm font-medium text-brand">Travado</span>
                         </div>
@@ -285,14 +297,13 @@
         </div>
     </div>
     
-    <!-- ... Modal (idêntico) ... -->
     <div id="modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 hidden">
         <div id="modal-backdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="relative z-10 w-full max-w-4xl bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden" style="max-height: 90vh;">
             <div class="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <div class="flex items-center gap-3">
                     <h2 id="modal-title" class="text-2xl font-bold text-brand">Nome do Curso</h2>
-                    <div class="flex items-center gap-2 pt-1"> <!-- Wrapper para os badges -->
+                    <div class="flex items-center gap-2 pt-1">
                         <span id="modal-nivel" class="text-xs font-semibold px-2.5 py-1 rounded-full"></span>
                         <span id="modal-ch" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800"></span>
                     </div>
@@ -340,8 +351,8 @@
 
     <script>
         // --- CONSTANTES DE ESTADO ---
-        const LOCKED_X_MAX = 200; // Valor fixo para o modo travado
-        const LOCKED_X_THRESHOLD = 100; // Centro fixo para o modo travado
+        const LOCKED_X_MAX = 200;
+        const LOCKED_X_THRESHOLD = 100;
         const ABSOLUTE_Y_MAX = 100;
         const Y_THRESHOLD = 50;
         const API_URL = 'https://api-quadrantes.vercel.app/api/dados';
@@ -350,7 +361,7 @@
         let allData = [], filteredData = [], dataDrivenXMax = LOCKED_X_MAX;
         
         // --- INSTÂNCIAS DE GRÁFICO E SLIDER ---
-        let demandChartInstance = null, currentModalItem = null;
+        let demandChartInstance = null, paretoChartInstance = null, currentModalItem = null;
         let demandSlider, scoreSlider;
         
         // --- VARIÁVEIS GLOBAIS DE ESTADO ---
@@ -358,7 +369,7 @@
         let isAxisLocked = true;
         let currentXThreshold = LOCKED_X_THRESHOLD;
         let currentVisualCap = LOCKED_X_MAX;
-        let selectedResponsaveis = []; // NOVO: Para múltipla seleção
+        let selectedResponsaveis = [];
 
         
         async function loadDataFromAPI() {
@@ -384,12 +395,9 @@
             }
         }
         
-        // MODIFICADO: Esta função agora também renderiza os checkboxes
         function updateFilterOptions() {
             const selectedCadeia = document.getElementById('filter-cadeia').value;
-            // selectedResponsaveis é global
 
-            // --- 1. Popular Cadeias (filtrado por responsáveis) ---
             let dataForCadeias = (selectedResponsaveis.length > 0) 
                 ? allData.filter(item => selectedResponsaveis.includes(item.responsavel)) 
                 : allData;
@@ -402,15 +410,13 @@
             };
             repopulateSelect(document.getElementById('filter-cadeia'), cadeias, selectedCadeia);
 
-            // --- 2. Popular Responsáveis (filtrado por cadeia) ---
             let dataForResponsaveis = (selectedCadeia !== 'todas') 
                 ? allData.filter(item => item.cadeia === selectedCadeia) 
                 : allData;
             const responsaveis = [...new Set(dataForResponsaveis.map(item => item.responsavel).filter(Boolean))].sort();
 
-            // --- 3. Renderizar Lista de Checkbox de Responsáveis ---
             const container = document.getElementById('filter-responsavel-list');
-            container.innerHTML = ''; // Limpa a lista antiga
+            container.innerHTML = ''; 
             
             if (responsaveis.length === 0) {
                 container.innerHTML = '<p class="text-xs text-gray-500 text-center">Nenhum responsável disponível.</p>';
@@ -424,12 +430,11 @@
                 
                 const input = document.createElement('input');
                 input.type = 'checkbox';
-                input.id = `resp-${responsavel.replace(/\s+/g, '-')}`; // ID único
+                input.id = `resp-${responsavel.replace(/\s+/g, '-')}`;
                 input.value = responsavel;
                 input.checked = isChecked;
                 input.className = 'h-4 w-4 rounded border-gray-300 text-brand focus:ring-brand';
                 
-                // Adiciona o evento de mudança
                 input.addEventListener('change', (e) => {
                     if (e.target.checked) {
                         selectedResponsaveis.push(e.target.value);
@@ -437,8 +442,8 @@
                         selectedResponsaveis = selectedResponsaveis.filter(r => r !== e.target.value);
                     }
                     activeQuadrantFilter = null; 
-                    updateFilterOptions(); // Re-filtra a lista de Cadeias
-                    applyFilters(); // Aplica todos os filtros
+                    updateFilterOptions();
+                    applyFilters();
                 });
                 
                 const label = document.createElement('label');
@@ -453,6 +458,7 @@
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            setupTabs(); 
             setupPanelControls();
             setupModalControls();
             setupFilterListeners();
@@ -461,8 +467,44 @@
             loadDataFromAPI();
         });
 
+        function setupTabs() {
+            const tabQuadrant = document.getElementById('tab-quadrant');
+            const tabPareto = document.getElementById('tab-pareto');
+            const quadrantView = document.getElementById('quadrant-view');
+            const paretoView = document.getElementById('pareto-view');
+            const exportBtn = document.getElementById('export-pareto-btn');
+
+            tabQuadrant.addEventListener('click', () => {
+                tabQuadrant.classList.add('text-brand', 'border-brand');
+                tabQuadrant.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                tabPareto.classList.remove('text-brand', 'border-brand');
+                tabPareto.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+
+                quadrantView.classList.remove('hidden');
+                paretoView.classList.add('hidden');
+                exportBtn.classList.add('hidden'); // Esconde o botão de exportar
+            });
+
+            tabPareto.addEventListener('click', () => {
+                tabPareto.classList.add('text-brand', 'border-brand');
+                tabPareto.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                tabQuadrant.classList.remove('text-brand', 'border-brand');
+                tabQuadrant.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                
+                paretoView.classList.remove('hidden');
+                quadrantView.classList.add('hidden');
+                exportBtn.classList.remove('hidden'); // Mostra o botão de exportar
+                
+                renderParetoChart(filteredData);
+            });
+
+            // Adiciona o listener para o botão de exportar
+            exportBtn.addEventListener('click', () => exportParetoToCSV(filteredData));
+        }
+
         function setupPanelControls() {
-            // ... (idêntico) ...
             const openFiltersBtn = document.getElementById('open-filters-btn'), closeFiltersBtn = document.getElementById('close-filters-btn'),
                   clearFiltersBtnHeader = document.getElementById('clear-filters-btn-header'), clearFiltersBtnPanel = document.getElementById('clear-filters-btn-panel'),
                   filtersPanelContainer = document.getElementById('filters-panel-container'), filtersBackdrop = document.getElementById('filters-backdrop'),
@@ -477,24 +519,20 @@
         }
 
         function setupModalControls() {
-            // ... (idêntico) ...
             const modalBackdrop = document.getElementById('modal-backdrop'), closeModalBtn = document.getElementById('close-modal-btn');
             closeModalBtn.addEventListener('click', closeCourseModal);
             modalBackdrop.addEventListener('click', closeCourseModal);
         }
 
         function setupSliders() {
-            // ... (idêntico) ...
             demandSlider = createSlider('demand-slider', { 'min': 0, 'max': dataDrivenXMax }, 'demand-slider-min-input', 'demand-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
             scoreSlider = createSlider('score-slider', { 'min': 0, 'max': ABSOLUTE_Y_MAX }, 'score-slider-min-input', 'score-slider-max-input', () => { activeQuadrantFilter = null; applyFilters(); });
         }
 
-        // MODIFICADO: Remove listener antigo, adiciona novos
         function setupFilterListeners() {
             const handleFilterChange = () => { activeQuadrantFilter = null; updateFilterOptions(); applyFilters(); };
             
             document.getElementById('filter-cadeia').addEventListener('change', handleFilterChange); 
-            // O listener de 'filter-responsavel' foi removido daqui e adicionado dinamicamente
             
             document.getElementById('filter-nome').addEventListener('input', () => { activeQuadrantFilter = null; applyFilters(); });
             
@@ -506,29 +544,26 @@
                 applyFilters();
             });
 
-            // NOVO: Listeners para botões 'Todos' e 'Nenhum'
             document.getElementById('responsavel-select-all').addEventListener('click', () => {
                 const allVisibleResponsaveis = Array.from(document.querySelectorAll('#filter-responsavel-list input[type="checkbox"]')).map(cb => cb.value);
-                // Adiciona todos os visíveis à seleção, sem duplicatas
                 selectedResponsaveis = [...new Set([...selectedResponsaveis, ...allVisibleResponsaveis])]; 
                 activeQuadrantFilter = null; 
-                updateFilterOptions(); // Atualiza a lista de cadeias e re-renderiza checkboxes
+                updateFilterOptions();
                 applyFilters();
             });
             
             document.getElementById('responsavel-clear-all').addEventListener('click', () => {
-                selectedResponsaveis = []; // Limpa a seleção
+                selectedResponsaveis = [];
                 activeQuadrantFilter = null; 
-                updateFilterOptions(); // Atualiza a lista de cadeias e re-renderiza checkboxes
+                updateFilterOptions();
                 applyFilters();
             });
         }
         
-        // MODIFICADO: Reseta a lista de responsáveis
         function resetFilters() {
             document.getElementById('filter-nome').value = '';
             document.getElementById('filter-cadeia').value = 'todas';
-            selectedResponsaveis = []; // NOVO
+            selectedResponsaveis = [];
             
             document.getElementById('axis-lock-toggle').checked = true;
             isAxisLocked = true;
@@ -543,7 +578,6 @@
         }
         
         function setupAutocomplete() {
-            // ... (idêntico) ...
             const input = document.getElementById('filter-nome');
             const suggestionsContainer = document.getElementById('course-suggestions');
             input.addEventListener('input', () => {
@@ -567,7 +601,6 @@
         }
         
         function setupQuadrantButtons() {
-            // ... (idêntico) ...
             document.getElementById('btn-q-top-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
             document.getElementById('btn-q-top-right').addEventListener('click', (e) => { setQuadrantFilter(LOCKED_X_THRESHOLD, dataDrivenXMax, Y_THRESHOLD, ABSOLUTE_Y_MAX, e.currentTarget.dataset.quadrant); });
             document.getElementById('btn-q-bottom-left').addEventListener('click', (e) => { setQuadrantFilter(0, LOCKED_X_THRESHOLD, 0, Y_THRESHOLD, e.currentTarget.dataset.quadrant); });
@@ -575,7 +608,6 @@
         }
 
         function setQuadrantFilter(minX, maxX, minY, maxY, quadrantId) {
-            // ... (idêntico) ...
             document.getElementById('axis-lock-toggle').checked = true;
             isAxisLocked = true;
             document.getElementById('demand-slider').removeAttribute('disabled');
@@ -586,13 +618,11 @@
             applyFilters();
         }
 
-        // MODIFICADO: Atualiza a lógica de filtragem para 'responsavel'
         function applyFilters() {
             if (!demandSlider || !scoreSlider || allData.length === 0) return;
 
             const [minScore, maxScore] = scoreSlider.noUiSlider.get().map(parseFloat);
             const cadeia = document.getElementById('filter-cadeia').value, 
-                  // responsavel removido daqui
                   nome = document.getElementById('filter-nome').value.toLowerCase();
             const demandSliderEl = document.getElementById('demand-slider');
 
@@ -600,7 +630,6 @@
             let visualXMin, visualXMax;
 
             if (isAxisLocked) {
-                // ... (lógica do eixo travado idêntica) ...
                 demandSliderEl.removeAttribute('disabled');
                 currentXThreshold = LOCKED_X_THRESHOLD;
                 currentVisualCap = LOCKED_X_MAX; 
@@ -608,19 +637,13 @@
                 visualXMax = maxDemanda;
 
             } else {
-                // MODO DINÂMICO (OFF)
                 demandSliderEl.setAttribute('disabled', 'true');
-
-                // 1. Filtra os dados pelos outros campos primeiro
                 const tempFiltered = allData.filter(item => 
                     (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                     (cadeia === 'todas' || item.cadeia === cadeia) && 
-                    // MODIFICADO: Usa a lista de responsáveis
                     (selectedResponsaveis.length === 0 || selectedResponsaveis.includes(item.responsavel)) && 
                     (item.pontuacao >= minScore && item.pontuacao <= maxScore)
                 );
-
-                // ... (lógica do eixo dinâmico idêntica) ...
                 const maxDemandaInFilter = tempFiltered.length > 0 ? Math.max(...tempFiltered.map(item => item.demanda)) : 10;
                 visualXMax = Math.max(10, Math.ceil(maxDemandaInFilter / 10) * 10);
                 visualXMin = 0;
@@ -631,7 +654,6 @@
                 maxDemanda = visualXMax;
             }
             
-            // --- FILTRO FINAL ---
             const isMaxRange = isAxisLocked && (maxDemanda === dataDrivenXMax);
 
             filteredData = allData.filter(item => {
@@ -639,13 +661,11 @@
                 
                 return (nome === '' || item.nome.toLowerCase().includes(nome)) && 
                        (cadeia === 'todas' || item.cadeia === cadeia) && 
-                       // MODIFICADO: Usa a lista de responsáveis
                        (selectedResponsaveis.length === 0 || selectedResponsaveis.includes(item.responsavel)) && 
                        demandCondition && 
                        (item.pontuacao >= minScore && item.pontuacao <= maxScore);
             });
             
-            // --- RENDERIZAÇÃO ---
             const renderXMin = visualXMin;
             const renderXMax = isAxisLocked ? Math.min(visualXMax, currentVisualCap) : visualXMax;
 
@@ -653,10 +673,182 @@
             renderQuadrantLines(renderXMin, renderXMax, minScore, maxScore);
             updateQuadrantLabelsVisibility(minDemanda, maxDemanda, minScore, maxScore);
             renderDataPoints(filteredData, renderXMin, renderXMax, minScore, maxScore);
+            
+            if (!document.getElementById('pareto-view').classList.contains('hidden')) {
+                renderParetoChart(filteredData);
+            }
         }
 
+        function renderParetoChart(data) {
+            const ctx = document.getElementById('pareto-chart').getContext('2d');
+            if (paretoChartInstance) {
+                paretoChartInstance.destroy();
+            }
+
+            if (data.length === 0) {
+                ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+                ctx.font = "16px 'Lexend'";
+                ctx.fillStyle = '#64748b';
+                ctx.textAlign = 'center';
+                ctx.fillText('Nenhum dado para exibir com os filtros atuais.', ctx.canvas.width / 2, 50);
+                return;
+            }
+
+            const sortedData = [...data].sort((a, b) => b.demanda - a.demanda);
+            
+            const labels = sortedData.map(d => d.nome);
+            const demandValues = sortedData.map(d => d.demanda);
+            const totalDemand = demandValues.reduce((sum, value) => sum + value, 0);
+
+            let cumulativeSum = 0;
+            const cumulativePercentage = demandValues.map(value => {
+                cumulativeSum += value;
+                return totalDemand > 0 ? (cumulativeSum / totalDemand) * 100 : 0;
+            });
+            
+            paretoChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Demanda PEM 2026',
+                        data: demandValues,
+                        backgroundColor: 'rgba(35, 89, 55, 0.6)',
+                        borderColor: 'rgba(35, 89, 55, 1)',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                    }, {
+                        type: 'line',
+                        label: '% Acumulada',
+                        data: cumulativePercentage,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'transparent',
+                        borderWidth: 3,
+                        pointRadius: 1.5,
+                        pointBackgroundColor: '#ef4444',
+                        yAxisID: 'y1',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            position: 'nearest', // <-- NOVO: Fixa o tooltip
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.dataset.type === 'line') {
+                                        label += parseFloat(context.raw).toFixed(1) + '%';
+                                    } else {
+                                        label += context.raw;
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'bottom',
+                        },
+                        datalabels: {
+                           display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: {
+                                display: false
+                            }
+                        },
+                        y: { 
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                             title: {
+                                display: true,
+                                text: 'Demanda (PEM 2026)'
+                            }
+                        },
+                        y1: { 
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            min: 0,
+                            max: 100,
+                             title: {
+                                display: true,
+                                text: 'Percentual Acumulado'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                    }
+                }
+            });
+        }
+
+        // --- INÍCIO: NOVA FUNÇÃO PARA EXPORTAR CSV ---
+        function exportParetoToCSV(data) {
+            if (data.length === 0) {
+                alert("Não há dados filtrados para exportar.");
+                return;
+            }
+
+            // 1. Processar os dados (ordenar e calcular acumulado)
+            const sortedData = [...data].sort((a, b) => b.demanda - a.demanda);
+            const totalDemand = sortedData.reduce((sum, item) => sum + item.demanda, 0);
+
+            let cumulativeSum = 0;
+            const dataForExport = sortedData.map(item => {
+                cumulativeSum += item.demanda;
+                const cumulativePercent = totalDemand > 0 ? (cumulativeSum / totalDemand) * 100 : 0;
+                return {
+                    nome: item.nome,
+                    demanda: item.demanda,
+                    percentual: cumulativePercent,
+                    impacto: cumulativePercent <= 80.5 ? 'Sim' : 'Não' // Adiciona uma pequena margem
+                };
+            });
+
+            // 2. Criar o conteúdo CSV
+            const header = ["Nome do Curso", "Demanda PEM 2026", "Percentual Acumulado (%)", "Impacto (80/20)"];
+            const rows = dataForExport.map(item => [
+                `"${item.nome.replace(/"/g, '""')}"`, // Trata aspas dentro do nome
+                item.demanda,
+                item.percentual.toFixed(1).replace('.', ','), // Formato para Excel BR
+                item.impacto
+            ]);
+
+            let csvContent = [header, ...rows].map(e => e.join(";")).join("\n");
+
+            // 3. Criar e baixar o arquivo
+            const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "analise_pareto_pem_2026.csv");
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+        }
+        // --- FIM: NOVA FUNÇÃO PARA EXPORTAR CSV ---
+
         function createSlider(elementId, range, minInputId, maxInputId, onSetCallback) {
-            // ... (idêntico) ...
             const slider = document.getElementById(elementId), 
                   minInput = document.getElementById(minInputId), 
                   maxInput = document.getElementById(maxInputId);
@@ -678,7 +870,6 @@
         }
 
         function updateQuadrantLabelsVisibility(currentXMin, currentXMax, currentYMin, currentYMax) {
-            // ... (idêntico) ...
             const allQuadrantLabels = ['q-top-left', 'q-top-right', 'q-bottom-left', 'q-bottom-right'];
             if (activeQuadrantFilter) {
                 allQuadrantLabels.forEach(id => { document.getElementById(id).classList.toggle('hidden', id !== activeQuadrantFilter); });
@@ -696,7 +887,6 @@
         }
 
         function renderQuadrantLines(currentXMin, currentXMax, currentYMin, currentYMax) {
-            // ... (idêntico) ...
             const lineX = document.getElementById('quadrant-line-x'), lineY = document.getElementById('quadrant-line-y'), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             
             lineX.style.display = (yRange > 0 && currentYMin <= Y_THRESHOLD && currentYMax >= Y_THRESHOLD) ? 'block' : 'none';
@@ -707,7 +897,6 @@
         }
         
         function renderAxisTicks(currentXMin, currentXMax, currentYMin, currentYMax) {
-            // ... (idêntico) ...
             const ticksYContainer = document.getElementById('ticks-y-container'), ticksXContainer = document.getElementById('ticks-x-container');
             ticksYContainer.innerHTML = ''; ticksXContainer.innerHTML = '';
             const yRange = currentYMax - currentYMin;
@@ -737,7 +926,6 @@
         }
         
         function renderDataPoints(data, currentXMin, currentXMax, currentYMin, currentYMax) {
-            // ... (idêntico) ...
             const chartArea = document.getElementById('chart-area'); chartArea.innerHTML = ''; const fragment = document.createDocumentFragment(), yRange = currentYMax - currentYMin, xRange = currentXMax - currentXMin;
             
             data.forEach((item, index) => { 
@@ -783,35 +971,27 @@
                     const item = filteredData[e.target.dataset.itemId]; 
                     if (!item) return; 
                     
-                    // --- NOVO: Lógica de Variação Percentual ---
                     const demanda_2026 = item.demanda;
-                    const demanda_2025 = item.demand_history[4]; // 2025 é o 5º valor (índice 4)
+                    const demanda_2025 = item.demand_history[4];
                     let percentIndicator = '';
 
-                    // Verifica se temos um valor válido para 2025
                     if (demanda_2025 !== null && demanda_2025 !== undefined) {
                         if (demanda_2025 > 0) {
-                            // Calcula a variação percentual
                             const percentChange = ((demanda_2026 - demanda_2025) / demanda_2025) * 100;
                             
-                            if (percentChange > 0.1) { // Limite para evitar "0%"
+                            if (percentChange > 0.1) {
                                 percentIndicator = ` <span class="text-green-400 font-medium">&uarr; ${percentChange.toFixed(0)}%</span>`;
                             } else if (percentChange < -0.1) {
-                                // Para o seu exemplo (100 -> 90), o resultado é -10%
                                 percentIndicator = ` <span class="text-red-400 font-medium">&darr; ${Math.abs(percentChange).toFixed(0)}%</span>`;
                             } else {
-                                // Quase sem mudança
                                 percentIndicator = ` <span class="text-gray-400" title="Sem mudança vs 2025">&ndash;</span>`;
                             }
                         } else if (demanda_2025 === 0 && demanda_2026 > 0) {
-                            // Se era 0 e agora é > 0, é um grande aumento (ou curso novo)
                             percentIndicator = ` <span class="text-green-400 font-medium" title="Novo vs 2025">&uarr;</span>`;
                         }
                     }
-                    // --- Fim da Lógica ---
 
                     tooltip.style.display = 'block'; 
-                    // Atualiza o HTML do tooltip para incluir o indicador
                     tooltip.innerHTML = `<div class="font-bold mb-1">${item.nome}</div><div><strong>Pontuação:</strong> ${item.pontuacao}</div><div><strong>Demanda:</strong> ${demanda_2026}${percentIndicator}</div>`; 
                 } 
             });
@@ -842,9 +1022,6 @@
             document.getElementById('modal-pem').textContent = item.demanda; 
             document.getElementById('modal-responsavel').textContent = item.responsavel;
 
-            // --- NOVO: Lógica para Badges ---
-
-            // 1. Carga Horária (campo "carga horaria" com espaço)
             if (item["carga horaria"]) {
                 chBadge.textContent = `${item["carga horaria"]}h`;
                 chBadge.style.display = 'inline-block';
@@ -852,55 +1029,35 @@
                 chBadge.style.display = 'none';
             }
 
-            // 2. Nível (com lógica de cores)
             if (item.nivel) {
                 const nivel = item.nivel.toLowerCase();
-                let bgColor = 'bg-slate-200'; // Default
-                let textColor = 'text-slate-800';
+                let bgColor = 'bg-slate-200', textColor = 'text-slate-800';
                 
                 switch(nivel) {
-                    case 'básico':
-                        bgColor = 'bg-green-100';
-                        textColor = 'text-green-800';
-                        break;
-                    case 'intermediário':
-                        bgColor = 'bg-yellow-100';
-                        textColor = 'text-yellow-800';
-                        break;
-                    case 'avançado':
-                        bgColor = 'bg-orange-100';
-                        textColor = 'text-orange-800';
-                        break;
-                    case 'único':
-                        bgColor = 'bg-gray-200'; // Cor "cinza"
-                        textColor = 'text-gray-800';
-                        break;
+                    case 'básico': bgColor = 'bg-green-100'; textColor = 'text-green-800'; break;
+                    case 'intermediário': bgColor = 'bg-yellow-100'; textColor = 'text-yellow-800'; break;
+                    case 'avançado': bgColor = 'bg-orange-100'; textColor = 'text-orange-800'; break;
+                    case 'único': bgColor = 'bg-gray-200'; textColor = 'text-gray-800'; break;
                 }
                 
-                // Reseta classes e aplica as novas
                 nivelBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full'; 
                 nivelBadge.classList.add(bgColor, textColor);
-                nivelBadge.textContent = item.nivel; // Usa a capitalização original (ex: "Básico")
+                nivelBadge.textContent = item.nivel;
                 nivelBadge.style.display = 'inline-block';
-
             } else {
                 nivelBadge.style.display = 'none';
             }
             
-            // --- Fim da Lógica para Badges ---
-
             renderDemandChart(item.demand_history);
             renderSimilarCourses(allData.filter(c => c.cadeia === item.cadeia && c.nome !== item.nome).slice(0, 3));
             modal.classList.remove('hidden');
         }
         
         function closeCourseModal() { 
-            // ... (idêntico) ...
             document.getElementById('modal').classList.add('hidden'); if (demandChartInstance) { demandChartInstance.destroy(); demandChartInstance = null; } currentModalItem = null; 
         }
 
         function renderDemandChart(history) {
-            // ... (idêntico) ...
             if (demandChartInstance) { demandChartInstance.destroy(); }
             const ctx = document.getElementById('demand-chart').getContext('2d');
             Chart.register(ChartDataLabels);
@@ -924,9 +1081,7 @@
                         legend: { display: false }, 
                         tooltip: { backgroundColor: '#334155' },
                         datalabels: {
-                            anchor: 'end',
-                            align: 'top',
-                            color: '#374151',
+                            anchor: 'end', align: 'top', color: '#374151',
                             font: { weight: 'bold' },
                             formatter: (value) => value > 0 ? value : null
                         }
@@ -945,7 +1100,6 @@
         }
 
         function renderSimilarCourses(courses) {
-            // ... (idêntico) ...
             const list = document.getElementById('similar-list'); list.innerHTML = '';
             if (courses.length === 0) { list.innerHTML = '<p class="text-sm text-gray-500 text-center col-span-full">Nenhum curso similar encontrado.</p>'; return; }
             courses.forEach(course => { const div = document.createElement('div'); div.className = 'p-3 bg-white border border-gray-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer'; div.innerHTML = `<div class="font-medium text-sm text-gray-800">${course.nome}</div><div class="flex justify-between text-xs text-gray-500 mt-1"><span>Pontuação: <strong class="text-brand">${course.pontuacao}</strong></span><span>Demanda: <strong class="text-brand">${course.demanda}</strong></span></div>`; div.addEventListener('click', () => { openCourseModal(course); }); list.appendChild(div); });
