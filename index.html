@@ -164,7 +164,7 @@
                 </button>
             </nav>
             <button id="export-pareto-btn" class="hidden flex items-center gap-2 text-sm bg-gray-200 text-gray-800 font-semibold rounded-md hover:bg-gray-300 transition-colors py-1.5 px-3">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
                 Exportar
             </button>
         </div>
@@ -306,6 +306,7 @@
                     <div class="flex items-center gap-2 pt-1">
                         <span id="modal-nivel" class="text-xs font-semibold px-2.5 py-1 rounded-full"></span>
                         <span id="modal-ch" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800"></span>
+                        <span id="modal-validade" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-200 text-slate-800"></span>
                     </div>
                 </div>
                 <button id="close-modal-btn" aria-label="Fechar detalhes do curso" class="text-gray-400 hover:text-gray-700 transition-colors">
@@ -1016,6 +1017,8 @@
             
             const nivelBadge = document.getElementById('modal-nivel');
             const chBadge = document.getElementById('modal-ch');
+            // CÓDIGO JS ADICIONADO
+            const validadeBadge = document.getElementById('modal-validade');
             
             document.getElementById('modal-title').textContent = item.nome; 
             document.getElementById('modal-score').textContent = item.pontuacao; 
@@ -1046,6 +1049,14 @@
                 nivelBadge.style.display = 'inline-block';
             } else {
                 nivelBadge.style.display = 'none';
+            }
+            
+            // CÓDIGO JS ADICIONADO
+            if (item.validade) {
+                validadeBadge.textContent = `Validade: ${item.validade}`;
+                validadeBadge.style.display = 'inline-block';
+            } else {
+                validadeBadge.style.display = 'none';
             }
             
             renderDemandChart(item.demand_history);
