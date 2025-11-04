@@ -380,9 +380,11 @@
                 const response = await fetch(API_URL);
                 if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
                 const data = await response.json();
-                allData = data.map(item => ({ ...item, display_demanda: Math.min(item.demanda, LOCKED_X_MAX) }));
-
-                if (allData.length > 0) {
+                allData = data
+                                    .filter(item => item.aparecer === "Sim")
+                                    .map(item => ({ ...item, display_demanda: Math.min(item.demanda, LOCKED_X_MAX) }));
+                
+                 if (allData.length > 0) {
                     const trueMaxDemand = Math.max(...allData.map(item => item.demanda));
                     dataDrivenXMax = Math.ceil(trueMaxDemand / 100) * 100;
                 }
